@@ -94,9 +94,10 @@ export default function Companies() {
                     {company.website}
                   </div>
                 )}
-                {company.city && (
+                {(company.city || company.province) && (
                   <div className="text-sm text-muted-foreground">
-                    📍 {company.city}
+                    📍 {[company.city, company.province ? `(${company.province})` : null].filter(Boolean).join(' ')}
+                    {company.postal_code && ` - ${company.postal_code}`}
                   </div>
                 )}
               </CardContent>

@@ -884,6 +884,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           postal_code: string | null
+          province: string | null
           tax_code: string | null
           updated_at: string
           user_id: string
@@ -903,6 +904,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          province?: string | null
           tax_code?: string | null
           updated_at?: string
           user_id: string
@@ -922,6 +924,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          province?: string | null
           tax_code?: string | null
           updated_at?: string
           user_id?: string
@@ -1605,6 +1608,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      italian_cities: {
+        Row: {
+          city_name: string
+          created_at: string
+          id: string
+          postal_code: string
+          province_code: string
+          province_name: string
+          region: string
+        }
+        Insert: {
+          city_name: string
+          created_at?: string
+          id?: string
+          postal_code: string
+          province_code: string
+          province_name: string
+          region: string
+        }
+        Update: {
+          city_name?: string
+          created_at?: string
+          id?: string
+          postal_code?: string
+          province_code?: string
+          province_name?: string
+          region?: string
         }
         Relationships: []
       }
