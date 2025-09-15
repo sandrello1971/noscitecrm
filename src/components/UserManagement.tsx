@@ -33,7 +33,19 @@ export function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      // Get all users with their profiles and roles
+      // Only admins should see the user management section
+      // Get current user role first
+      const { data: currentUserRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single()
+
+      if (currentUserRole?.role !== 'admin') {
+        throw new Error('Non hai i permessi per accedere a questa sezione')
+      }
+
+      // Get users with email from profiles table (we'll store email there)
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select(`
@@ -54,33 +66,20 @@ export function UserManagement() {
 
       if (rolesError) throw rolesError
 
-      // For each profile, try to get the email from auth metadata
-      const combinedUsers: User[] = []
-      
-      if (profiles) {
-        for (const profile of profiles) {
-          try {
-            // Get user email from auth (admin function)
-            const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
-            const userRole = roles?.find(r => r.user_id === profile.id)
-            
-            if (userData?.user) {
-              combinedUsers.push({
-                id: profile.id,
-                email: userData.user.email || '',
-                first_name: profile.first_name,
-                last_name: profile.last_name,
-                phone: profile.phone,
-                role: userRole?.role || 'user',
-                created_at: profile.created_at
-              })
-            }
-          } catch (error) {
-            // Skip users we can't access
-            console.warn('Could not fetch user data for:', profile.id)
-          }
+      // Since we can't access auth emails directly, we'll show just the profiles
+      // In a real app, you'd store the email in the profiles table
+      const combinedUsers: User[] = profiles?.map(profile => {
+        const userRole = roles?.find(r => r.user_id === profile.id)
+        return {
+          id: profile.id,
+          email: `user-${profile.id.slice(0, 8)}@domain.com`, // Placeholder - in real app store email in profile
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          phone: profile.phone,
+          role: userRole?.role || 'user',
+          created_at: profile.created_at
         }
-      }
+      }) || []
 
       setUsers(combinedUsers)
     } catch (error: any) {
@@ -106,21 +105,15 @@ export function UserManagement() {
 
     setInviting(true)
     try {
-      // Invite the user through Supabase Auth
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(newUserEmail, {
-        redirectTo: `${window.location.origin}/auth`
-      })
-
-      if (error) throw error
-
+      // For now, we'll show a message that user invitation needs to be handled differently
+      // In a production app, you'd use an Edge Function with service role permissions
       toast({
-        title: "Utente invitato",
-        description: `Invito inviato a ${newUserEmail}. L'utente riceverà un'email per completare la registrazione.`,
+        title: "Funzionalità non disponibile",
+        description: "L'invito utenti richiede configurazione server-side. Gli utenti possono registrarsi direttamente dalla pagina di login.",
+        variant: "default",
       })
 
       setNewUserEmail('')
-      // Refresh users list after a short delay to allow for user creation
-      setTimeout(fetchUsers, 2000)
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -164,14 +157,23 @@ export function UserManagement() {
 
   const deleteUser = async (userId: string, userEmail: string) => {
     try {
-      // Delete user from auth (this will cascade delete profile and roles)
-      const { error } = await supabase.auth.admin.deleteUser(userId)
+      // Delete user roles first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+
+      // Delete user profile
+      const { error } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('id', userId)
 
       if (error) throw error
 
       toast({
-        title: "Utente eliminato",
-        description: `L'utente ${userEmail} è stato eliminato con successo.`,
+        title: "Profilo utente eliminato",
+        description: `Il profilo di ${userEmail} è stato eliminato. L'account auth dovrà essere eliminato manualmente.`,
       })
 
       fetchUsers()
