@@ -1878,6 +1878,69 @@ export type Database = {
         }
         Relationships: []
       }
+      opportunities: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          description: string | null
+          expected_close_date: string | null
+          id: string
+          notes: string | null
+          service_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          win_probability: number
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          service_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          win_probability?: number
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          service_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          win_probability?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "crm_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_services: {
         Row: {
           created_at: string
@@ -2770,7 +2833,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
+        Returns: string
       }
       log_admin_access: {
         Args: { p_action: string; p_record_id?: string; p_table_name: string }

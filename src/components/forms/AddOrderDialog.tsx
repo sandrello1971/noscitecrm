@@ -150,12 +150,12 @@ export function AddOrderDialog({ open, onOpenChange, onOrderAdded }: AddOrderDia
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona una commessa padre" />
               </SelectTrigger>
-              <SelectContent>
-                {/* TODO: Caricare le commesse da Supabase */}
-                <SelectItem value="">Nessuna (Commessa principale)</SelectItem>
-                <SelectItem value="1">COM-001 - Progetto principale</SelectItem>
-                <SelectItem value="2">COM-002 - Altro progetto</SelectItem>
-              </SelectContent>
+                <SelectContent>
+                  {/* TODO: Caricare le commesse da Supabase */}
+                  <SelectItem value="none">Nessuna (Commessa principale)</SelectItem>
+                  <SelectItem value="1">COM-001 - Progetto principale</SelectItem>
+                  <SelectItem value="2">COM-002 - Altro progetto</SelectItem>
+                </SelectContent>
             </Select>
           </div>
 
@@ -277,12 +277,12 @@ export function AddOrderDialog({ open, onOpenChange, onOrderAdded }: AddOrderDia
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un utente" />
               </SelectTrigger>
-              <SelectContent>
-                {/* TODO: Caricare gli utenti da Supabase */}
-                <SelectItem value="">Nessuno</SelectItem>
-                <SelectItem value="1">Mario Rossi</SelectItem>
-                <SelectItem value="2">Luigi Bianchi</SelectItem>
-              </SelectContent>
+                <SelectContent>
+                  {/* TODO: Caricare gli utenti da Supabase */}
+                  <SelectItem value="none">Nessuno</SelectItem>
+                  <SelectItem value="1">Mario Rossi</SelectItem>
+                  <SelectItem value="2">Luigi Bianchi</SelectItem>
+                </SelectContent>
             </Select>
           </div>
 

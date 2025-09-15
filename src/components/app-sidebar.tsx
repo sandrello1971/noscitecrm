@@ -6,6 +6,7 @@ import {
   Home, 
   ShoppingCart,
   Package,
+  TrendingUp,
   LogOut
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
@@ -28,6 +29,7 @@ const items = [
   { title: "Aziende", url: "/companies", icon: Building2 },
   { title: "Contatti", url: "/contacts", icon: Users },
   { title: "Servizi", url: "/services", icon: Package },
+  { title: "Opportunità", url: "/opportunities", icon: TrendingUp },
   { title: "Commesse", url: "/orders", icon: ShoppingCart },
   { title: "Impostazioni", url: "/settings", icon: Settings },
 ]
