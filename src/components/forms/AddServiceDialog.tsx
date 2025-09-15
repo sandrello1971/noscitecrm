@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
 
 interface AddServiceDialogProps {
   open: boolean
@@ -17,6 +18,7 @@ interface AddServiceDialogProps {
 export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServiceDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [partners, setPartners] = useState<any[]>([])
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -24,16 +26,49 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
     service_type: "simple",
     unit_price: "",
     unit_of_measure: "pz",
+    partner_id: "",
     is_active: true
   })
+
+  useEffect(() => {
+    async function fetchPartners() {
+      const { data } = await supabase
+        .from('crm_companies')
+        .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('is_partner', true)
+        .eq('is_active', true)
+        .order('name')
+      
+      if (data) setPartners(data)
+    }
+    
+    if (open) fetchPartners()
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      // TODO: Implementare chiamata a Supabase
-      console.log("Dati servizio:", formData)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
+      const { data, error } = await supabase
+        .from('crm_services')
+        .insert([{
+          user_id: user.id,
+          code: formData.code,
+          name: formData.name,
+          description: formData.description || null,
+          service_type: formData.service_type,
+          unit_price: formData.unit_price ? parseFloat(formData.unit_price) : null,
+          unit_of_measure: formData.unit_of_measure,
+          partner_id: formData.partner_id || null,
+          is_active: formData.is_active,
+        }])
+
+      if (error) throw error
       
       toast({
         title: "Servizio creato",
@@ -49,6 +84,7 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
         service_type: "simple",
         unit_price: "",
         unit_of_measure: "pz",
+        partner_id: "",
         is_active: true
       })
     } catch (error) {
@@ -111,6 +147,23 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
               placeholder="Consulenza IT"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="partner_id">Partner</Label>
+            <Select value={formData.partner_id} onValueChange={(value) => updateFormData("partner_id", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona un partner (opzionale)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nessun partner</SelectItem>
+                {partners.map((partner) => (
+                  <SelectItem key={partner.id} value={partner.id}>
+                    {partner.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

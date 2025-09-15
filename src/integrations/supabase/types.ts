@@ -879,6 +879,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          is_partner: boolean
           name: string
           notes: string | null
           phone: string | null
@@ -897,6 +898,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          is_partner?: boolean
           name: string
           notes?: string | null
           phone?: string | null
@@ -915,6 +917,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          is_partner?: boolean
           name?: string
           notes?: string | null
           phone?: string | null
@@ -1174,6 +1177,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          partner_id: string | null
           service_type: string
           unit_of_measure: string | null
           unit_price: number | null
@@ -1187,6 +1191,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          partner_id?: string | null
           service_type: string
           unit_of_measure?: string | null
           unit_price?: number | null
@@ -1200,13 +1205,22 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          partner_id?: string | null
           service_type?: string
           unit_of_measure?: string | null
           unit_price?: number | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_services_partner"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       digital_timestamps: {
         Row: {
@@ -1830,6 +1844,45 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      partner_services: {
+        Row: {
+          created_at: string
+          id: string
+          partner_company_id: string
+          service_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          partner_company_id: string
+          service_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          partner_company_id?: string
+          service_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_partner_services_partner"
+            columns: ["partner_company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_partner_services_service"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "crm_services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       performance_baselines: {
         Row: {

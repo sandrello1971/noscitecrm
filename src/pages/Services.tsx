@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Package, Settings, DollarSign } from "lucide-react"
@@ -7,8 +8,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AddServiceDialog } from "@/components/forms/AddServiceDialog"
 
 export default function Services() {
-  const [services] = useState([])
+  const [services, setServices] = useState([])
   const [showAddDialog, setShowAddDialog] = useState(false)
+
+  useEffect(() => {
+    async function fetchServices() {
+      const { data } = await supabase
+        .from('crm_services')
+        .select(`
+          *,
+          partner:crm_companies(name)
+        `)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .order('name')
+      
+      if (data) {
+        const servicesWithPartner = data.map(service => ({
+          ...service,
+          partner_name: service.partner?.name
+        }))
+        setServices(servicesWithPartner)
+      }
+    }
+    
+    fetchServices()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -73,20 +97,25 @@ export default function Services() {
                         {service.description}
                       </p>
                     )}
-                    {service.unit_price && (
-                      <div className="flex items-center text-sm">
-                        <DollarSign className="mr-1 h-4 w-4 text-green-600" />
-                        <span className="font-medium">
-                          €{service.unit_price} / {service.unit_of_measure}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-end">
-                      <Button variant="outline" size="sm">
-                        <Settings className="mr-1 h-4 w-4" />
-                        Modifica
-                      </Button>
-                    </div>
+                     {service.unit_price && (
+                       <div className="flex items-center text-sm">
+                         <DollarSign className="mr-1 h-4 w-4 text-green-600" />
+                         <span className="font-medium">
+                           €{service.unit_price} / {service.unit_of_measure}
+                         </span>
+                       </div>
+                     )}
+                     {service.partner_name && (
+                       <div className="text-sm text-muted-foreground">
+                         👥 Partner: <span className="font-medium">{service.partner_name}</span>
+                       </div>
+                     )}
+                     <div className="flex justify-end">
+                       <Button variant="outline" size="sm">
+                         <Settings className="mr-1 h-4 w-4" />
+                         Modifica
+                       </Button>
+                     </div>
                   </CardContent>
                 </Card>
               ))}
@@ -107,7 +136,8 @@ export default function Services() {
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
         onServiceAdded={() => {
-          // TODO: Refresh services list
+          // Refresh services list
+          window.location.reload()
         }}
       />
     </div>

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
 
 interface AddCompanyDialogProps {
   open: boolean
@@ -29,7 +30,8 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
     postal_code: "",
     country: "IT",
     notes: "",
-    is_active: true
+    is_active: true,
+    is_partner: false
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,8 +39,29 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
     setLoading(true)
 
     try {
-      // TODO: Implementare chiamata a Supabase
-      console.log("Dati azienda:", formData)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
+      const { data, error } = await supabase
+        .from('crm_companies')
+        .insert([{
+          user_id: user.id,
+          name: formData.name,
+          vat_number: formData.vat_number || null,
+          tax_code: formData.tax_code || null,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          website: formData.website || null,
+          address: formData.address || null,
+          city: formData.city || null,
+          postal_code: formData.postal_code || null,
+          country: formData.country,
+          notes: formData.notes || null,
+          is_active: formData.is_active,
+          is_partner: formData.is_partner,
+        }])
+
+      if (error) throw error
       
       toast({
         title: "Azienda creata",
@@ -59,7 +82,8 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
         postal_code: "",
         country: "IT",
         notes: "",
-        is_active: true
+        is_active: true,
+        is_partner: false
       })
     } catch (error) {
       toast({
@@ -206,6 +230,15 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
               placeholder="Note aggiuntive sull'azienda..."
               rows={3}
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="is_partner"
+              checked={formData.is_partner}
+              onCheckedChange={(checked) => updateFormData("is_partner", checked)}
+            />
+            <Label htmlFor="is_partner">Partner</Label>
           </div>
 
           <div className="flex items-center space-x-2">

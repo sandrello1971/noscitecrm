@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Building2, Mail, Phone, Globe } from "lucide-react"
@@ -6,8 +7,22 @@ import { Badge } from "@/components/ui/badge"
 import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
 
 export default function Companies() {
-  const [companies] = useState([])
+  const [companies, setCompanies] = useState([])
   const [showAddDialog, setShowAddDialog] = useState(false)
+
+  useEffect(() => {
+    async function fetchCompanies() {
+      const { data } = await supabase
+        .from('crm_companies')
+        .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .order('name')
+      
+      if (data) setCompanies(data)
+    }
+    
+    fetchCompanies()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -45,9 +60,16 @@ export default function Companies() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{company.name}</CardTitle>
-                  <Badge variant={company.is_active ? "default" : "secondary"}>
-                    {company.is_active ? "Attiva" : "Inattiva"}
-                  </Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant={company.is_active ? "default" : "secondary"}>
+                      {company.is_active ? "Attiva" : "Inattiva"}
+                    </Badge>
+                    {company.is_partner && (
+                      <Badge variant="outline" className="text-blue-600 border-blue-600">
+                        Partner
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 {company.vat_number && (
                   <CardDescription>P.IVA: {company.vat_number}</CardDescription>
@@ -87,7 +109,8 @@ export default function Companies() {
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
         onCompanyAdded={() => {
-          // TODO: Refresh companies list
+          // Refresh companies list  
+          window.location.reload()
         }}
       />
     </div>
