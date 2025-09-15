@@ -140,10 +140,10 @@ export function UserManagement() {
         .delete()
         .eq('user_id', userId)
 
-      // Insert new role
+      // Insert new role - cast to any to handle TypeScript enum mismatch
       const { error } = await supabase
         .from('user_roles')
-        .insert([{ user_id: userId, role: newRole as 'admin' | 'moderator' | 'user' }])
+        .insert([{ user_id: userId, role: newRole as any }])
 
       if (error) throw error
 

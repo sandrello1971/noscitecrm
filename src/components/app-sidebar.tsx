@@ -36,7 +36,7 @@ export function AppSidebar() {
   const { state } = useSidebar()
   const location = useLocation()
   const currentPath = location.pathname
-  const { signOut } = useAuth()
+  const { signOut, isAdmin } = useAuth()
 
   const isActive = (path: string) => currentPath === path
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -53,7 +53,10 @@ export function AppSidebar() {
     >
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>CRM Noscite</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            CRM Noscite
+            {isAdmin && <span className="text-xs text-blue-600 ml-2">(Admin)</span>}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
