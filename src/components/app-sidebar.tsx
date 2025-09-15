@@ -5,8 +5,10 @@ import {
   Settings, 
   Home, 
   ShoppingCart,
-  Package
+  Package,
+  LogOut
 } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 import {
   Sidebar,
@@ -17,11 +19,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar"
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Aziende", url: "/companies", icon: Building2 },
   { title: "Contatti", url: "/contacts", icon: Users },
   { title: "Servizi", url: "/services", icon: Package },
@@ -33,10 +36,15 @@ export function AppSidebar() {
   const { state } = useSidebar()
   const location = useLocation()
   const currentPath = location.pathname
+  const { signOut } = useAuth()
 
   const isActive = (path: string) => currentPath === path
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"
+
+  const handleSignOut = async () => {
+    await signOut()
+  }
 
   return (
     <Sidebar
@@ -62,6 +70,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleSignOut}>
+              <LogOut className="size-4" />
+              <span>Esci</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   )
 }
