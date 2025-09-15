@@ -17,7 +17,7 @@ interface AddCompanyDialogProps {
 
 export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddCompanyDialogProps) {
   const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     vat_number: "",
@@ -37,7 +37,7 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    setSubmitting(true)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -95,7 +95,7 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
         variant: "destructive",
       })
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -234,8 +234,8 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creazione..." : "Crea Azienda"}
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Creazione..." : "Crea Azienda"}
             </Button>
           </DialogFooter>
         </form>
