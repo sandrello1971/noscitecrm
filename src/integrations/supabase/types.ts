@@ -2748,6 +2748,10 @@ export type Database = {
         Args: { archive_date?: string; retention_months: number }
         Returns: string
       }
+      cleanup_old_chat_conversations: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2876,6 +2880,10 @@ export type Database = {
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      validate_session_access: {
+        Args: { conversation_session_id: string }
+        Returns: boolean
       }
       validate_webhook_signature: {
         Args: { payload: string; secret: string; signature: string }
