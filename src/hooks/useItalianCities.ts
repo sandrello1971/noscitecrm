@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '@/integrations/supabase/client'
+import { useState, useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
 
-interface ItalianCity {
+export interface ItalianCity {
   id: string
   province_code: string
   province_name: string
@@ -10,7 +10,7 @@ interface ItalianCity {
   region: string
 }
 
-interface Province {
+export interface Province {
   code: string
   name: string
   region: string
@@ -22,92 +22,116 @@ export function useItalianCities() {
   const [postalCodes, setPostalCodes] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Carica tutte le province all'avvio
   useEffect(() => {
-    async function fetchProvinces() {
-      const { data } = await supabase
+    loadProvinces()
+  }, [])
+
+  const loadProvinces = async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
         .from('italian_cities')
         .select('province_code, province_name, region')
         .order('province_name')
 
-      if (data) {
-        const uniqueProvinces = Array.from(
-          new Map(data.map(item => [item.province_code, {
+      if (error) throw error
+
+      const uniqueProvinces = data?.reduce((acc: Province[], item) => {
+        const existing = acc.find(p => p.code === item.province_code)
+        if (!existing) {
+          acc.push({
             code: item.province_code,
             name: item.province_name,
             region: item.region
-          }])).values()
-        )
-        setProvinces(uniqueProvinces)
-      }
-    }
-    
-    fetchProvinces()
-  }, [])
+          })
+        }
+        return acc
+      }, []) || []
 
-  // Carica le città per una provincia
+      setProvinces(uniqueProvinces)
+    } catch (error) {
+      console.error('Error loading provinces:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getCitiesByProvince = async (provinceCode: string) => {
     setLoading(true)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('italian_cities')
         .select('*')
         .eq('province_code', provinceCode)
         .order('city_name')
 
-      if (data) {
-        setCities(data)
-      }
+      if (error) throw error
+      setCities(data || [])
+    } catch (error) {
+      console.error('Error loading cities:', error)
+      setCities([])
     } finally {
       setLoading(false)
     }
   }
 
-  // Cerca città per nome (filtrato per provincia se specificata)
   const searchCities = async (searchTerm: string, provinceCode?: string) => {
+    if (searchTerm.length < 2) {
+      setCities([])
+      return []
+    }
+
     setLoading(true)
     try {
-      let query = supabase
+      let queryBuilder = supabase
         .from('italian_cities')
         .select('*')
         .ilike('city_name', `%${searchTerm}%`)
-        
-      if (provinceCode) {
-        query = query.eq('province_code', provinceCode)
-      }
-      
-      const { data } = await query
-        .order('city_name')
-        .limit(10)
 
-      if (data) {
-        setCities(data)
+      if (provinceCode) {
+        queryBuilder = queryBuilder.eq('province_code', provinceCode)
       }
+
+      const { data, error } = await queryBuilder
+        .order('city_name')
+        .limit(20)
+
+      if (error) throw error
+      
+      const results = data || []
+      setCities(results)
+      return results
+    } catch (error) {
+      console.error('Error searching cities:', error)
+      setCities([])
+      return []
     } finally {
       setLoading(false)
     }
   }
 
-  // Carica i CAP per una specifica città
   const getPostalCodesByCity = async (cityName: string, provinceCode?: string) => {
     try {
-      let query = supabase
+      let queryBuilder = supabase
         .from('italian_cities')
         .select('postal_code')
         .eq('city_name', cityName)
-        
-      if (provinceCode) {
-        query = query.eq('province_code', provinceCode)
-      }
-      
-      const { data } = await query.order('postal_code')
 
-      if (data) {
-        const codes = data.map(item => item.postal_code)
-        setPostalCodes([...new Set(codes)]) // Rimuovi duplicati
+      if (provinceCode) {
+        queryBuilder = queryBuilder.eq('province_code', provinceCode)
       }
+
+      const { data, error } = await queryBuilder
+
+      if (error) throw error
+      
+      const codes = data?.map(item => item.postal_code).sort() || []
+      setPostalCodes(codes)
+      return codes
     } catch (error) {
-      console.error('Error fetching postal codes:', error)
+      console.error('Error loading postal codes:', error)
+      setPostalCodes([])
+      return []
     }
   }
 
