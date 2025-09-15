@@ -2570,6 +2570,7 @@ export type Database = {
       user_profiles: {
         Row: {
           created_at: string
+          email: string | null
           first_name: string | null
           id: string
           last_name: string | null
@@ -2579,6 +2580,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
           first_name?: string | null
           id: string
           last_name?: string | null
@@ -2588,6 +2590,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null

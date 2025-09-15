@@ -45,7 +45,7 @@ export function UserManagement() {
         throw new Error('Non hai i permessi per accedere a questa sezione')
       }
 
-      // Get users with email from profiles table (we'll store email there)
+      // Get users with email from profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select(`
@@ -53,6 +53,7 @@ export function UserManagement() {
           first_name,
           last_name,
           phone,
+          email,
           created_at
         `)
         .order('created_at', { ascending: false })
@@ -66,13 +67,12 @@ export function UserManagement() {
 
       if (rolesError) throw rolesError
 
-      // Since we can't access auth emails directly, we'll show just the profiles
-      // In a real app, you'd store the email in the profiles table
+      // Combine profiles with roles
       const combinedUsers: User[] = profiles?.map(profile => {
         const userRole = roles?.find(r => r.user_id === profile.id)
         return {
           id: profile.id,
-          email: `user-${profile.id.slice(0, 8)}@domain.com`, // Placeholder - in real app store email in profile
+          email: profile.email || 'Email non disponibile',
           first_name: profile.first_name,
           last_name: profile.last_name,
           phone: profile.phone,
