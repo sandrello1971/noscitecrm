@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Building2, Mail, Phone, Globe } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
 
 export default function Companies() {
   const [companies] = useState([])
+  const [showAddDialog, setShowAddDialog] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -14,7 +16,7 @@ export default function Companies() {
           <h1 className="text-3xl font-bold">Aziende</h1>
           <p className="text-muted-foreground">Gestisci l'anagrafica delle aziende clienti</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuova Azienda
         </Button>
@@ -30,7 +32,7 @@ export default function Companies() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button>
+            <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Aggiungi Prima Azienda
             </Button>
@@ -80,6 +82,14 @@ export default function Companies() {
           ))}
         </div>
       )}
+      
+      <AddCompanyDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog}
+        onCompanyAdded={() => {
+          // TODO: Refresh companies list
+        }}
+      />
     </div>
   )
 }

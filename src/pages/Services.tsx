@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Plus, Package, Settings, DollarSign } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AddServiceDialog } from "@/components/forms/AddServiceDialog"
 
 export default function Services() {
   const [services] = useState([])
+  const [showAddDialog, setShowAddDialog] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -15,7 +17,7 @@ export default function Services() {
           <h1 className="text-3xl font-bold">Servizi</h1>
           <p className="text-muted-foreground">Gestisci la distinta base dei servizi</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuovo Servizio
         </Button>
@@ -39,7 +41,7 @@ export default function Services() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button>
+                <Button onClick={() => setShowAddDialog(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Crea Primo Servizio
                 </Button>
@@ -100,6 +102,14 @@ export default function Services() {
           <p className="text-muted-foreground">Servizi composti - combinazioni di servizi semplici o altri servizi composti</p>
         </TabsContent>
       </Tabs>
+      
+      <AddServiceDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog}
+        onServiceAdded={() => {
+          // TODO: Refresh services list
+        }}
+      />
     </div>
   )
 }

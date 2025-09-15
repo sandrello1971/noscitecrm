@@ -5,9 +5,11 @@ import { Plus, ShoppingCart, Calendar, User, DollarSign, BarChart3 } from "lucid
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AddOrderDialog } from "@/components/forms/AddOrderDialog"
 
 export default function Orders() {
   const [orders] = useState([])
+  const [showAddDialog, setShowAddDialog] = useState(false)
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -62,7 +64,7 @@ export default function Orders() {
           <h1 className="text-3xl font-bold">Commesse</h1>
           <p className="text-muted-foreground">Gestisci le commesse con struttura gerarchica</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuova Commessa
         </Button>
@@ -87,7 +89,7 @@ export default function Orders() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button>
+                <Button onClick={() => setShowAddDialog(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Crea Prima Commessa
                 </Button>
@@ -190,6 +192,14 @@ export default function Orders() {
           <p className="text-muted-foreground">Bozze di commesse</p>
         </TabsContent>
       </Tabs>
+      
+      <AddOrderDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog}
+        onOrderAdded={() => {
+          // TODO: Refresh orders list
+        }}
+      />
     </div>
   )
 }

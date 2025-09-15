@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Plus, Users, Mail, Phone, Building2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { AddContactDialog } from "@/components/forms/AddContactDialog"
 
 export default function Contacts() {
   const [contacts] = useState([])
+  const [showAddDialog, setShowAddDialog] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -15,7 +17,7 @@ export default function Contacts() {
           <h1 className="text-3xl font-bold">Contatti</h1>
           <p className="text-muted-foreground">Gestisci l'anagrafica dei contatti aziendali</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuovo Contatto
         </Button>
@@ -31,7 +33,7 @@ export default function Contacts() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button>
+            <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Aggiungi Primo Contatto
             </Button>
@@ -95,6 +97,14 @@ export default function Contacts() {
           ))}
         </div>
       )}
+      
+      <AddContactDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog}
+        onContactAdded={() => {
+          // TODO: Refresh contacts list
+        }}
+      />
     </div>
   )
 }
