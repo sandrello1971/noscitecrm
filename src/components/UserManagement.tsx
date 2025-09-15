@@ -105,15 +105,26 @@ export function UserManagement() {
 
     setInviting(true)
     try {
-      // For now, we'll show a message that user invitation needs to be handled differently
-      // In a production app, you'd use an Edge Function with service role permissions
-      toast({
-        title: "Funzionalità non disponibile",
-        description: "L'invito utenti richiede configurazione server-side. Gli utenti possono registrarsi direttamente dalla pagina di login.",
-        variant: "default",
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: { email: newUserEmail.trim() }
       })
 
+      if (error) {
+        throw error
+      }
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      toast({
+        title: "Invito inviato",
+        description: "L'invito è stato inviato con successo!",
+      })
+      
       setNewUserEmail('')
+      // Refresh users list
+      fetchUsers()
     } catch (error: any) {
       toast({
         title: "Errore",
