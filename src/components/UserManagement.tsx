@@ -168,23 +168,21 @@ export function UserManagement() {
 
   const deleteUser = async (userId: string, userEmail: string) => {
     try {
-      // Delete user roles first
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId }
+      })
 
-      // Delete user profile
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('id', userId)
+      if (error) {
+        throw error
+      }
 
-      if (error) throw error
+      if (data.error) {
+        throw new Error(data.error)
+      }
 
       toast({
-        title: "Profilo utente eliminato",
-        description: `Il profilo di ${userEmail} è stato eliminato. L'account auth dovrà essere eliminato manualmente.`,
+        title: "Utente eliminato",
+        description: `L'utente ${userEmail} è stato eliminato completamente.`,
       })
 
       fetchUsers()
