@@ -43,6 +43,7 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
     service_id: "",
     amount: "",
     win_probability: "50",
+    status: "in_attesa" as 'in_attesa' | 'acquisita' | 'persa',
     notes: ""
   })
 
@@ -113,7 +114,7 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
         win_probability: parseInt(formData.win_probability),
         expected_close_date: expectedCloseDate?.toISOString().split('T')[0] || null,
         notes: formData.notes || null,
-        status: 'in_attesa' as const
+        status: formData.status
       }
 
       const { error } = await supabase
@@ -149,6 +150,7 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
       service_id: "",
       amount: "",
       win_probability: "50",
+      status: "in_attesa" as const,
       notes: ""
     })
     setExpectedCloseDate(undefined)
@@ -243,6 +245,35 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Stato Iniziale</Label>
+            <Select value={formData.status} onValueChange={(value: 'in_attesa' | 'acquisita' | 'persa') => updateFormData("status", value)}>
+              <SelectTrigger className="bg-background border border-input">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background border border-input shadow-lg z-50">
+                <SelectItem value="in_attesa" className="hover:bg-accent">
+                  <div className="flex items-center">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                    In Attesa
+                  </div>
+                </SelectItem>
+                <SelectItem value="acquisita" className="hover:bg-accent">
+                  <div className="flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    Acquisita
+                  </div>
+                </SelectItem>
+                <SelectItem value="persa" className="hover:bg-accent">
+                  <div className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                    Persa
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
