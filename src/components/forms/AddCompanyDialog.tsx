@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
-import { CityAutocomplete } from "./CityAutocomplete"
 
 interface AddCompanyDialogProps {
   open: boolean
@@ -189,16 +188,34 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Località</Label>
-            <CityAutocomplete
-              province={formData.province}
-              city={formData.city}
-              postalCode={formData.postal_code}
-              onProvinceChange={(province) => updateFormData("province", province)}
-              onCityChange={(city) => updateFormData("city", city)}
-              onPostalCodeChange={(postalCode) => updateFormData("postal_code", postalCode)}
-            />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Città</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => updateFormData("city", e.target.value)}
+                placeholder="Milano"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="province">Provincia</Label>
+              <Input
+                id="province"
+                value={formData.province}
+                onChange={(e) => updateFormData("province", e.target.value)}
+                placeholder="MI"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="postal_code">CAP</Label>
+              <Input
+                id="postal_code"
+                value={formData.postal_code}
+                onChange={(e) => updateFormData("postal_code", e.target.value)}
+                placeholder="20100"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
