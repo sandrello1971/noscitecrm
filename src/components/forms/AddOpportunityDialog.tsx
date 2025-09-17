@@ -113,7 +113,7 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
         win_probability: parseInt(formData.win_probability),
         expected_close_date: expectedCloseDate?.toISOString().split('T')[0] || null,
         notes: formData.notes || null,
-        status: 'active'
+        status: 'in_attesa' as const
       }
 
       const { error } = await supabase

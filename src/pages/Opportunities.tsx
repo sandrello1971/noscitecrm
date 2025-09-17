@@ -2,7 +2,8 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, TrendingUp, DollarSign, Target, BarChart3 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, TrendingUp, DollarSign, Target, BarChart3, CheckCircle, XCircle, Clock } from "lucide-react"
 import { AddOpportunityDialog } from "@/components/forms/AddOpportunityDialog"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -13,7 +14,7 @@ interface Opportunity {
   description?: string
   amount: number
   win_probability: number
-  status: 'active' | 'won' | 'lost' | 'cancelled'
+  status: 'in_attesa' | 'acquisita' | 'persa'
   expected_close_date?: string
   notes?: string
   company_name?: string
@@ -46,7 +47,7 @@ export default function Opportunities() {
         description: item.description,
         amount: item.amount,
         win_probability: item.win_probability,
-        status: item.status as 'active' | 'won' | 'lost' | 'cancelled',
+        status: item.status as 'in_attesa' | 'acquisita' | 'persa',
         expected_close_date: item.expected_close_date,
         notes: item.notes,
         company_name: item.crm_companies?.name,
@@ -73,15 +74,16 @@ export default function Opportunities() {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      'active': { variant: 'default' as const, label: 'Attiva', className: '' },
-      'won': { variant: 'default' as const, label: 'Vinta', className: 'bg-green-500' },
-      'lost': { variant: 'destructive' as const, label: 'Persa', className: '' },
-      'cancelled': { variant: 'secondary' as const, label: 'Annullata', className: '' }
+      'in_attesa': { variant: 'default' as const, label: 'In Attesa', className: 'bg-blue-500 text-white', icon: Clock },
+      'acquisita': { variant: 'default' as const, label: 'Acquisita', className: 'bg-green-500 text-white', icon: CheckCircle },
+      'persa': { variant: 'destructive' as const, label: 'Persa', className: 'bg-red-500 text-white', icon: XCircle }
     }
     
-    const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap.active
+    const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap.in_attesa
+    const Icon = statusInfo.icon
     return (
       <Badge variant={statusInfo.variant} className={statusInfo.className}>
+        <Icon className="w-3 h-3 mr-1" />
         {statusInfo.label}
       </Badge>
     )
@@ -96,7 +98,7 @@ export default function Opportunities() {
   // Calculate forecast metrics
   const totalValue = opportunities.reduce((sum, opp) => sum + opp.amount, 0)
   const weightedValue = opportunities.reduce((sum, opp) => sum + (opp.amount * opp.win_probability / 100), 0)
-  const activeOpportunities = opportunities.filter(opp => opp.status === 'active').length
+  const activeOpportunities = opportunities.filter(opp => opp.status === 'in_attesa').length
   const avgProbability = opportunities.length > 0 
     ? opportunities.reduce((sum, opp) => sum + opp.win_probability, 0) / opportunities.length 
     : 0
@@ -106,17 +108,34 @@ export default function Opportunities() {
     setShowAddDialog(false)
   }
 
-  const convertToOrder = async (opportunityId: string) => {
+  const updateOpportunityStatus = async (opportunityId: string, newStatus: 'in_attesa' | 'acquisita' | 'persa') => {
     try {
-      // TODO: Implementare conversione da opportunità a commessa
-      toast({
-        title: "Funzionalità in sviluppo",
-        description: "La conversione in commessa sarà disponibile presto",
-      })
-    } catch (error) {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ status: newStatus })
+        .eq('id', opportunityId)
+
+      if (error) throw error
+
+      // Reload opportunities to get the updated list
+      loadOpportunities()
+      
+      if (newStatus === 'acquisita') {
+        toast({
+          title: "Opportunità acquisita!",
+          description: "L'opportunità è stata convertita automaticamente in commessa",
+        })
+      } else {
+        toast({
+          title: "Status aggiornato",
+          description: `L'opportunità è stata marcata come ${newStatus === 'persa' ? 'persa' : 'in attesa'}`,
+        })
+      }
+    } catch (error: any) {
+      console.error('Error updating opportunity status:', error)
       toast({
         title: "Errore",
-        description: "Errore durante la conversione",
+        description: "Errore durante l'aggiornamento dello status",
         variant: "destructive"
       })
     }
@@ -248,16 +267,37 @@ export default function Opportunities() {
                   </p>
                 )}
                 
-                {opportunity.status === 'active' && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => convertToOrder(opportunity.id)}
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">Cambia Status:</span>
+                  <Select 
+                    value={opportunity.status} 
+                    onValueChange={(value: 'in_attesa' | 'acquisita' | 'persa') => updateOpportunityStatus(opportunity.id, value)}
                   >
-                    Converti in Commessa
-                  </Button>
-                )}
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="in_attesa">
+                        <div className="flex items-center">
+                          <Clock className="w-3 h-3 mr-2" />
+                          In Attesa
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="acquisita">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-3 h-3 mr-2" />
+                          Acquisita
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="persa">
+                        <div className="flex items-center">
+                          <XCircle className="w-3 h-3 mr-2" />
+                          Persa
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
           ))}

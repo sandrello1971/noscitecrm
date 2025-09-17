@@ -1888,7 +1888,7 @@ export type Database = {
           id: string
           notes: string | null
           service_id: string
-          status: string
+          status: Database["public"]["Enums"]["opportunity_status"] | null
           title: string
           updated_at: string
           user_id: string
@@ -1903,7 +1903,7 @@ export type Database = {
           id?: string
           notes?: string | null
           service_id: string
-          status?: string
+          status?: Database["public"]["Enums"]["opportunity_status"] | null
           title: string
           updated_at?: string
           user_id: string
@@ -1918,7 +1918,7 @@ export type Database = {
           id?: string
           notes?: string | null
           service_id?: string
-          status?: string
+          status?: Database["public"]["Enums"]["opportunity_status"] | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -2938,6 +2938,7 @@ export type Database = {
         | "budget_alert"
         | "system_alert"
         | "anomaly_detected"
+      opportunity_status: "in_attesa" | "acquisita" | "persa"
       project_status:
         | "planning"
         | "in_progress"
@@ -3096,6 +3097,7 @@ export const Constants = {
         "system_alert",
         "anomaly_detected",
       ],
+      opportunity_status: ["in_attesa", "acquisita", "persa"],
       project_status: [
         "planning",
         "in_progress",
