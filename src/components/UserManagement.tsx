@@ -138,36 +138,29 @@ export function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Check if user already has this role
-      const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', newRole as any)
-        .maybeSingle()
-
-      if (existingRole) {
-        toast({
-          title: "Nessun cambiamento",
-          description: "L'utente ha già questo ruolo.",
-        })
-        return
-      }
-
-      // Delete existing roles for this user
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
-
-      if (deleteError) throw deleteError
-
-      // Insert new role - cast to any to handle TypeScript enum mismatch
+      // Use upsert approach - delete all existing roles and insert the new one
       const { error } = await supabase
         .from('user_roles')
-        .insert([{ user_id: userId, role: newRole as any }])
+        .upsert([{ user_id: userId, role: newRole as any }], { 
+          onConflict: 'user_id,role',
+          ignoreDuplicates: false 
+        })
 
-      if (error) throw error
+      if (error) {
+        // If upsert fails, try the delete+insert approach
+        const { error: deleteError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+
+        if (deleteError) throw deleteError
+
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert([{ user_id: userId, role: newRole as any }])
+
+        if (insertError) throw insertError
+      }
 
       toast({
         title: "Ruolo aggiornato",
@@ -176,6 +169,7 @@ export function UserManagement() {
 
       fetchUsers()
     } catch (error: any) {
+      console.error('Role update error:', error)
       toast({
         title: "Errore",
         description: error.message || "Errore durante l'aggiornamento del ruolo.",
