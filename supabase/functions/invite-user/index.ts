@@ -28,7 +28,19 @@ Deno.serve(async (req) => {
 
     if (!email) {
       return new Response(
-        JSON.stringify({ error: 'Email is required' }),
+        JSON.stringify({ error: 'Email è richiesta' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return new Response(
+        JSON.stringify({ error: 'Formato email non valido' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -43,8 +55,20 @@ Deno.serve(async (req) => {
 
     if (error) {
       console.error('Error inviting user:', error)
+      
+      let errorMessage = 'Errore durante l\'invito utente'
+      
+      // Handle specific error cases
+      if (error.message.includes('invalid')) {
+        errorMessage = 'L\'indirizzo email fornito non è valido o non è accettato dal sistema'
+      } else if (error.message.includes('already registered') || error.message.includes('already exists')) {
+        errorMessage = 'Un utente con questa email è già registrato'
+      } else if (error.message.includes('rate limit')) {
+        errorMessage = 'Troppi tentativi di invito. Riprova più tardi'
+      }
+      
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: errorMessage }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
