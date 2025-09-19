@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/integrations/supabase/client"
 import { UserManagement } from "@/components/UserManagement"
+import { SecurityAuditLog } from "@/components/SecurityAuditLog"
 
 interface UserProfile {
   id: string
@@ -412,6 +413,8 @@ export default function Settings() {
                 <UserManagement />
               </CardContent>
             </Card>
+            
+            <SecurityAuditLog />
           </TabsContent>
         )}
       </Tabs>

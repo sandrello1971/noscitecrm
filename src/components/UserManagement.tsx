@@ -144,20 +144,33 @@ export function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // First delete existing role for this user
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
+      // Get current user for security checks
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      
+      if (!currentUser) {
+        throw new Error('Utente non autenticato')
+      }
 
-      // Then insert the new role
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: userId, role: newRole as any }])
+      // Prevent self-modification for security
+      if (currentUser.id === userId) {
+        toast({
+          title: "Operazione non consentita",
+          description: "Non è possibile modificare il proprio ruolo per motivi di sicurezza.",
+          variant: "destructive",
+        })
+        return
+      }
 
-      if (insertError) {
-        console.error('Insert error:', insertError)
-        throw insertError
+      // Use the secure function to update the role
+      const { error } = await supabase.rpc('update_user_role_secure', {
+        p_target_user_id: userId,
+        p_new_role: newRole as 'admin' | 'user' | 'moderator',
+        p_change_reason: `Role updated via admin panel by ${currentUser.email}`
+      })
+
+      if (error) {
+        console.error('Role update error:', error)
+        throw error
       }
 
       toast({
@@ -167,10 +180,10 @@ export function UserManagement() {
 
       fetchUsers()
     } catch (error: any) {
-      console.error('Role update error:', error)
+      console.error('Error updating user role:', error)
       toast({
-        title: "Errore", 
-        description: error.message || "Errore durante l'aggiornamento del ruolo.",
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiornamento del ruolo",
         variant: "destructive",
       })
     }

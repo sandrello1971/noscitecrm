@@ -2339,6 +2339,42 @@ export type Database = {
           },
         ]
       }
+      role_change_audit: {
+        Row: {
+          change_reason: string | null
+          changed_by: string
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role: Database["public"]["Enums"]["app_role"] | null
+          target_user_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          target_user_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_role?: Database["public"]["Enums"]["app_role"]
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          target_user_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       security_audit_log: {
         Row: {
           action: string
@@ -2880,6 +2916,22 @@ export type Database = {
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      update_user_role_secure: {
+        Args: {
+          p_change_reason?: string
+          p_new_role: Database["public"]["Enums"]["app_role"]
+          p_target_user_id: string
+        }
+        Returns: undefined
+      }
+      validate_role_change: {
+        Args: {
+          p_change_reason?: string
+          p_new_role: Database["public"]["Enums"]["app_role"]
+          p_target_user_id: string
+        }
+        Returns: boolean
       }
       validate_session_access: {
         Args: { conversation_session_id: string }
