@@ -152,7 +152,7 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Aggiungi Nuovo Servizio</DialogTitle>
           <DialogDescription>
@@ -160,7 +160,7 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Codice Servizio *</Label>
