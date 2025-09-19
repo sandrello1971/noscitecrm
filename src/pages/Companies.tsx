@@ -2,16 +2,21 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Building2, Mail, Phone, Globe, Edit } from "lucide-react"
+import { Plus, Building2, Mail, Phone, Globe, Edit, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
 import { EditCompanyDialog } from "@/components/forms/EditCompanyDialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Companies() {
   const [companies, setCompanies] = useState([])
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<any>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [companyToDelete, setCompanyToDelete] = useState<any>(null)
+  const { toast } = useToast()
 
   const refreshCompanies = async () => {
     const { data } = await supabase
@@ -26,6 +31,37 @@ export default function Companies() {
   const handleEditCompany = (company: any) => {
     setSelectedCompany(company)
     setShowEditDialog(true)
+  }
+
+  const handleDeleteCompany = (company: any) => {
+    setCompanyToDelete(company)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDeleteCompany = async () => {
+    if (!companyToDelete) return
+
+    const { error } = await supabase
+      .from('crm_companies')
+      .delete()
+      .eq('id', companyToDelete.id)
+
+    if (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare l'azienda",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Successo",
+        description: "Azienda eliminata con successo",
+      })
+      refreshCompanies()
+    }
+
+    setShowDeleteDialog(false)
+    setCompanyToDelete(null)
   }
 
   useEffect(() => {
@@ -75,6 +111,13 @@ export default function Companies() {
                       onClick={() => handleEditCompany(company)}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleDeleteCompany(company)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                     <div className="flex flex-col gap-1">
                       <Badge variant={company.is_active ? "default" : "secondary"}>
@@ -135,6 +178,24 @@ export default function Companies() {
         company={selectedCompany}
         onCompanyUpdated={refreshCompanies}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare l'azienda "{companyToDelete?.name}"? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteCompany}>
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
