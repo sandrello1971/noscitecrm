@@ -20,14 +20,31 @@ export default function Services() {
   const { toast } = useToast()
 
   const refreshServices = async () => {
-    const { data } = await supabase
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Check if user is admin
+    const { data: userRole } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+    const isAdmin = userRole?.role === 'admin'
+
+    // Build query - admins see all data, users see only their own
+    let query = supabase
       .from('crm_services')
       .select(`
         *,
         partner:crm_companies(name)
       `)
-      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-      .order('name')
+
+    if (!isAdmin) {
+      query = query.eq('user_id', user.id)
+    }
+
+    const { data } = await query.order('name')
     
     if (data) {
       const servicesWithPartner = data.map(service => ({

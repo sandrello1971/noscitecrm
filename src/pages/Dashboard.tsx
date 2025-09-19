@@ -38,12 +38,34 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // Check if user is admin
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+
+      const isAdmin = userRole?.role === 'admin'
+
+      // Build queries - admins see all data, users see only their own
+      const companiesQuery = supabase.from('crm_companies').select('id', { count: 'exact' })
+      const contactsQuery = supabase.from('crm_contacts').select('id', { count: 'exact' }).eq('is_active', true)
+      const servicesQuery = supabase.from('crm_services').select('id', { count: 'exact' }).eq('is_active', true)
+      const ordersQuery = supabase.from('crm_orders').select('id', { count: 'exact' })
+
+      if (!isAdmin) {
+        companiesQuery.eq('user_id', user.id)
+        contactsQuery.eq('user_id', user.id)
+        servicesQuery.eq('user_id', user.id)
+        ordersQuery.eq('user_id', user.id)
+      }
+
       // Fetch stats in parallel
       const [companiesResult, contactsResult, servicesResult, ordersResult] = await Promise.all([
-        supabase.from('crm_companies').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('crm_contacts').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_active', true),
-        supabase.from('crm_services').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_active', true),
-        supabase.from('crm_orders').select('id', { count: 'exact' }).eq('user_id', user.id)
+        companiesQuery,
+        contactsQuery,
+        servicesQuery,
+        ordersQuery
       ])
 
       setStats({
@@ -54,12 +76,17 @@ export default function Dashboard() {
       })
 
       // Fetch recent orders
-      const { data: ordersData } = await supabase
+      let ordersDataQuery = supabase
         .from('crm_orders')
         .select('id, title, status, created_at, total_amount')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(5)
+
+      if (!isAdmin) {
+        ordersDataQuery = ordersDataQuery.eq('user_id', user.id)
+      }
+
+      const { data: ordersData } = await ordersDataQuery
 
       setRecentOrders(ordersData || [])
     } catch (error) {

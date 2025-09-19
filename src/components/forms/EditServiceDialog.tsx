@@ -58,25 +58,42 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Fetch partners
-      const { data: partnersData } = await supabase
+      // Check if user is admin
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+
+      const isAdmin = userRole?.role === 'admin'
+
+      // Fetch partners - admins see all, users see only their own
+      let partnersQuery = supabase
         .from('crm_companies')
         .select('*')
-        .eq('user_id', user.id)
         .eq('is_partner', true)
         .eq('is_active', true)
-        .order('name')
-      
-      if (partnersData) setPartners(partnersData)
 
-      // Fetch existing services for composition (excluding current service)
-      const { data: servicesData } = await supabase
+      if (!isAdmin) {
+        partnersQuery = partnersQuery.eq('user_id', user.id)
+      }
+
+      const { data: partnersData } = await partnersQuery.order('name')
+      if (partnersData) setPartners(partnersData)
+      
+      // Fetch existing services for composition (excluding current service) - admins see all, users see only their own
+      let servicesQuery = supabase
         .from('crm_services')
         .select('*')
-        .eq('user_id', user.id)
         .eq('is_active', true)
         .neq('id', service?.id)
-        .order('name')
+
+      if (!isAdmin) {
+        servicesQuery = servicesQuery.eq('user_id', user.id)
+      }
+
+      const { data: servicesData } = await servicesQuery.order('name')
+      if (servicesData) setServices(servicesData)
       
       if (servicesData) setServices(servicesData)
     }
