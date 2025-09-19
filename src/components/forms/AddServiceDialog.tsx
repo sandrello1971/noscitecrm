@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { X, Plus } from "lucide-react"
 
 interface AddServiceDialogProps {
   open: boolean
@@ -19,6 +20,7 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [partners, setPartners] = useState<any[]>([])
+  const [services, setServices] = useState<any[]>([])
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -29,21 +31,47 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
     partner_id: "",
     is_active: true
   })
+  const [components, setComponents] = useState<Array<{
+    service_id: string
+    quantity: number
+    temp_id: string
+  }>>([])
+
+  interface ComponentWithService {
+    service_id: string
+    quantity: number
+    temp_id: string
+    service?: any
+  }
 
   useEffect(() => {
-    async function fetchPartners() {
-      const { data } = await supabase
+    async function fetchData() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Fetch partners
+      const { data: partnersData } = await supabase
         .from('crm_companies')
         .select('*')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user.id)
         .eq('is_partner', true)
         .eq('is_active', true)
         .order('name')
       
-      if (data) setPartners(data)
+      if (partnersData) setPartners(partnersData)
+
+      // Fetch existing services for composition
+      const { data: servicesData } = await supabase
+        .from('crm_services')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('name')
+      
+      if (servicesData) setServices(servicesData)
     }
     
-    if (open) fetchPartners()
+    if (open) fetchData()
   }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +115,7 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
         partner_id: "",
         is_active: true
       })
+      setComponents([])
     } catch (error) {
       toast({
         title: "Errore",
@@ -100,6 +129,25 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
 
   const updateFormData = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const addComponent = () => {
+    const newComponent = {
+      service_id: "",
+      quantity: 1,
+      temp_id: Date.now().toString()
+    }
+    setComponents(prev => [...prev, newComponent])
+  }
+
+  const removeComponent = (tempId: string) => {
+    setComponents(prev => prev.filter(c => c.temp_id !== tempId))
+  }
+
+  const updateComponent = (tempId: string, field: string, value: any) => {
+    setComponents(prev => prev.map(c => 
+      c.temp_id === tempId ? { ...c, [field]: value } : c
+    ))
   }
 
   return (
@@ -211,13 +259,63 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
           </div>
 
           {formData.service_type === "composed" && (
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <h4 className="font-medium mb-2">Composizione Servizio</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                Dopo aver creato il servizio composto, potrai definire i servizi che lo compongono.
-              </p>
-              <Button type="button" variant="outline" size="sm">
-                Aggiungi Componenti
+            <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">Composizione Servizio</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Definisci i servizi che compongono questo servizio composto.
+                </p>
+              </div>
+              
+              {components.map((component) => (
+                <div key={component.temp_id} className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label>Servizio</Label>
+                    <Select 
+                      value={component.service_id} 
+                      onValueChange={(value) => updateComponent(component.temp_id, "service_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona un servizio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.code} - {service.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-24">
+                    <Label>Quantità</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={component.quantity}
+                      onChange={(e) => updateComponent(component.temp_id, "quantity", parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => removeComponent(component.temp_id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={addComponent}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Aggiungi Componente
               </Button>
             </div>
           )}
