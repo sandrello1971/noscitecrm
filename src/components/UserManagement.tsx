@@ -144,7 +144,7 @@ export function UserManagement() {
         .select('role')
         .eq('user_id', userId)
         .eq('role', newRole as any)
-        .single()
+        .maybeSingle()
 
       if (existingRole) {
         toast({
