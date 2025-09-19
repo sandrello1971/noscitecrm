@@ -138,28 +138,41 @@ export function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Use upsert approach - delete all existing roles and insert the new one
-      const { error } = await supabase
+      // Check if user already has this exact role
+      const { data: existingRole } = await supabase
         .from('user_roles')
-        .upsert([{ user_id: userId, role: newRole as any }], { 
-          onConflict: 'user_id,role',
-          ignoreDuplicates: false 
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', newRole as any)
+        .maybeSingle()
+
+      if (existingRole) {
+        toast({
+          title: "Nessun cambiamento",
+          description: "L'utente ha già questo ruolo.",
         })
+        return
+      }
 
-      if (error) {
-        // If upsert fails, try the delete+insert approach
-        const { error: deleteError } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId)
+      // Delete ALL existing roles for this user first
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
 
-        if (deleteError) throw deleteError
+      if (deleteError) {
+        console.error('Delete error:', deleteError)
+        throw deleteError
+      }
 
-        const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role: newRole as any }])
+      // Then insert the new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert([{ user_id: userId, role: newRole as any }])
 
-        if (insertError) throw insertError
+      if (insertError) {
+        console.error('Insert error:', insertError)
+        throw insertError
       }
 
       toast({
@@ -171,7 +184,7 @@ export function UserManagement() {
     } catch (error: any) {
       console.error('Role update error:', error)
       toast({
-        title: "Errore",
+        title: "Errore", 
         description: error.message || "Errore durante l'aggiornamento del ruolo.",
         variant: "destructive",
       })
