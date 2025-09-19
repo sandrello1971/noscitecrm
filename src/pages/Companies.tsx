@@ -8,6 +8,7 @@ import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
 import { EditCompanyDialog } from "@/components/forms/EditCompanyDialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function Companies() {
   const [companies, setCompanies] = useState([])
@@ -17,19 +18,14 @@ export default function Companies() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<any>(null)
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
 
   const refreshCompanies = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Check if user is admin
-    const { data: userRole } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
-
-    const isAdmin = userRole?.role === 'admin'
+    // Use isAdmin from AuthContext instead of checking again
+    console.log('Current user:', user.email, 'isAdmin from context:', isAdmin)
 
     // Build query - admins see all data, users see only their own
     let query = supabase
@@ -40,7 +36,9 @@ export default function Companies() {
       query = query.eq('user_id', user.id)
     }
 
+    console.log('Query will be filtered by user_id:', !isAdmin)
     const { data } = await query.order('name')
+    console.log('Companies data:', data)
     
     if (data) setCompanies(data)
   }
@@ -83,7 +81,7 @@ export default function Companies() {
 
   useEffect(() => {
     refreshCompanies()
-  }, [])
+  }, [isAdmin])
 
   return (
     <div className="space-y-6">
