@@ -2,26 +2,34 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Building2, Mail, Phone, Globe } from "lucide-react"
+import { Plus, Building2, Mail, Phone, Globe, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
+import { EditCompanyDialog } from "@/components/forms/EditCompanyDialog"
 
 export default function Companies() {
   const [companies, setCompanies] = useState([])
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<any>(null)
+
+  const refreshCompanies = async () => {
+    const { data } = await supabase
+      .from('crm_companies')
+      .select('*')
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      .order('name')
+    
+    if (data) setCompanies(data)
+  }
+
+  const handleEditCompany = (company: any) => {
+    setSelectedCompany(company)
+    setShowEditDialog(true)
+  }
 
   useEffect(() => {
-    async function fetchCompanies() {
-      const { data } = await supabase
-        .from('crm_companies')
-        .select('*')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .order('name')
-      
-      if (data) setCompanies(data)
-    }
-    
-    fetchCompanies()
+    refreshCompanies()
   }, [])
 
   return (
@@ -60,15 +68,24 @@ export default function Companies() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{company.name}</CardTitle>
-                  <div className="flex flex-col gap-1">
-                    <Badge variant={company.is_active ? "default" : "secondary"}>
-                      {company.is_active ? "Attiva" : "Inattiva"}
-                    </Badge>
-                    {company.is_partner && (
-                      <Badge variant="outline" className="text-blue-600 border-blue-600">
-                        Partner
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleEditCompany(company)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant={company.is_active ? "default" : "secondary"}>
+                        {company.is_active ? "Attiva" : "Inattiva"}
                       </Badge>
-                    )}
+                      {company.is_partner && (
+                        <Badge variant="outline" className="text-blue-600 border-blue-600">
+                          Partner
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {company.vat_number && (
@@ -109,10 +126,14 @@ export default function Companies() {
       <AddCompanyDialog 
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
-        onCompanyAdded={() => {
-          // Refresh companies list  
-          window.location.reload()
-        }}
+        onCompanyAdded={refreshCompanies}
+      />
+
+      <EditCompanyDialog 
+        open={showEditDialog} 
+        onOpenChange={setShowEditDialog}
+        company={selectedCompany}
+        onCompanyUpdated={refreshCompanies}
       />
     </div>
   )
