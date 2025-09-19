@@ -139,10 +139,12 @@ export function UserManagement() {
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
       // Delete existing roles for this user
-      await supabase
+      const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', userId)
+
+      if (deleteError) throw deleteError
 
       // Insert new role - cast to any to handle TypeScript enum mismatch
       const { error } = await supabase
