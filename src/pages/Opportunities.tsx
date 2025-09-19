@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, TrendingUp, DollarSign, Target, BarChart3, CheckCircle, XCircle, Clock } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Plus, TrendingUp, DollarSign, Target, BarChart3, CheckCircle, XCircle, Clock, Edit, Trash2 } from "lucide-react"
 import { AddOpportunityDialog } from "@/components/forms/AddOpportunityDialog"
+import { EditOpportunityDialog } from "@/components/forms/EditOpportunityDialog"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 
@@ -19,12 +21,16 @@ interface Opportunity {
   notes?: string
   company_name?: string
   service_name?: string
+  company_id?: string
+  service_id?: string
   created_at: string
 }
 
 export default function Opportunities() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
@@ -52,6 +58,8 @@ export default function Opportunities() {
         notes: item.notes,
         company_name: item.crm_companies?.name,
         service_name: item.crm_services?.name,
+        company_id: item.company_id,
+        service_id: item.service_id,
         created_at: item.created_at
       })) || []
 
@@ -106,6 +114,42 @@ export default function Opportunities() {
   const handleOpportunityAdded = () => {
     loadOpportunities()
     setShowAddDialog(false)
+  }
+
+  const handleOpportunityUpdated = () => {
+    loadOpportunities()
+    setShowEditDialog(false)
+    setSelectedOpportunity(null)
+  }
+
+  const handleEditOpportunity = (opportunity: Opportunity) => {
+    setSelectedOpportunity(opportunity)
+    setShowEditDialog(true)
+  }
+
+  const handleDeleteOpportunity = async (opportunityId: string) => {
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .delete()
+        .eq('id', opportunityId)
+
+      if (error) throw error
+
+      toast({
+        title: "Successo",
+        description: "Opportunità eliminata con successo"
+      })
+
+      loadOpportunities()
+    } catch (error: any) {
+      console.error('Error deleting opportunity:', error)
+      toast({
+        title: "Errore",
+        description: "Errore durante l'eliminazione dell'opportunità",
+        variant: "destructive"
+      })
+    }
   }
 
   const updateOpportunityStatus = async (opportunityId: string, newStatus: 'in_attesa' | 'acquisita' | 'persa') => {
@@ -266,6 +310,44 @@ export default function Opportunities() {
                     {opportunity.description}
                   </p>
                 )}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditOpportunity(opportunity)}
+                    className="flex-1"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Modifica
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex-1">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Elimina
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Sei sicuro di voler eliminare l'opportunità "{opportunity.title}"? 
+                          Questa azione non può essere annullata.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annulla</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteOpportunity(opportunity.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Elimina
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
                 
                 <div className="space-y-2">
                   <span className="text-sm font-medium text-muted-foreground">Cambia Status:</span>
@@ -308,6 +390,13 @@ export default function Opportunities() {
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onOpportunityAdded={handleOpportunityAdded}
+      />
+
+      <EditOpportunityDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onOpportunityUpdated={handleOpportunityUpdated}
+        opportunity={selectedOpportunity}
       />
     </div>
   )
