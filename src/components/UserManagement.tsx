@@ -138,20 +138,15 @@ export function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // First check what roles the user currently has
-      const { data: currentRoles, error: fetchError } = await supabase
+      // Check if user already has this exact role
+      const { data: existingRole } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
+        .eq('role', newRole as any)
+        .single()
 
-      if (fetchError) {
-        console.error('Fetch error:', fetchError)
-        throw fetchError
-      }
-
-      // Check if user already has this exact role
-      const hasRole = currentRoles?.some(r => r.role === newRole)
-      if (hasRole) {
+      if (existingRole) {
         toast({
           title: "Nessun cambiamento",
           description: "L'utente ha già questo ruolo.",
@@ -159,19 +154,7 @@ export function UserManagement() {
         return
       }
 
-      // Delete all existing roles for this user first
-      const { error: deleteError, count } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
-
-      console.log('Deleted rows:', count)
-      if (deleteError) {
-        console.error('Delete error:', deleteError)
-        throw deleteError
-      }
-
-      // Only proceed with insert if we actually deleted something or user had no roles
+      // Just insert the new role - don't delete existing ones to allow multiple roles
       const { error: insertError } = await supabase
         .from('user_roles')
         .insert([{ user_id: userId, role: newRole as any }])
