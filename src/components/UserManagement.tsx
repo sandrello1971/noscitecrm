@@ -138,30 +138,16 @@ export function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Check if user already has this exact role
-      const { data: existingRole } = await supabase
+      // Use upsert to handle existing roles gracefully
+      const { error: upsertError } = await supabase
         .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', newRole as any)
-        .maybeSingle()
-
-      if (existingRole) {
-        toast({
-          title: "Nessun cambiamento",
-          description: "L'utente ha già questo ruolo.",
+        .upsert([{ user_id: userId, role: newRole as any }], { 
+          onConflict: 'user_id,role'
         })
-        return
-      }
 
-      // Just insert the new role - don't delete existing ones to allow multiple roles
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: userId, role: newRole as any }])
-
-      if (insertError) {
-        console.error('Insert error:', insertError)
-        throw insertError
+      if (upsertError) {
+        console.error('Upsert error:', upsertError)
+        throw upsertError
       }
 
       toast({
