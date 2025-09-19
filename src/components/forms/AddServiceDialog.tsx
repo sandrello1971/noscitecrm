@@ -156,7 +156,7 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
                 <SelectValue placeholder="Seleziona un partner (opzionale)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessun partner</SelectItem>
+                <SelectItem value="no-partner">Nessun partner</SelectItem>
                 {partners.map((partner) => (
                   <SelectItem key={partner.id} value={partner.id}>
                     {partner.name}
