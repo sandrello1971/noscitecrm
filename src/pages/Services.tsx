@@ -6,32 +6,35 @@ import { Plus, Package, Settings, DollarSign } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AddServiceDialog } from "@/components/forms/AddServiceDialog"
+import { EditServiceDialog } from "@/components/forms/EditServiceDialog"
 
 export default function Services() {
   const [services, setServices] = useState([])
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [selectedService, setSelectedService] = useState(null)
+
+  const refreshServices = async () => {
+    const { data } = await supabase
+      .from('crm_services')
+      .select(`
+        *,
+        partner:crm_companies(name)
+      `)
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      .order('name')
+    
+    if (data) {
+      const servicesWithPartner = data.map(service => ({
+        ...service,
+        partner_name: service.partner?.name
+      }))
+      setServices(servicesWithPartner)
+    }
+  }
 
   useEffect(() => {
-    async function fetchServices() {
-      const { data } = await supabase
-        .from('crm_services')
-        .select(`
-          *,
-          partner:crm_companies(name)
-        `)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .order('name')
-      
-      if (data) {
-        const servicesWithPartner = data.map(service => ({
-          ...service,
-          partner_name: service.partner?.name
-        }))
-        setServices(servicesWithPartner)
-      }
-    }
-    
-    fetchServices()
+    refreshServices()
   }, [])
 
   return (
@@ -110,12 +113,19 @@ export default function Services() {
                          👥 Partner: <span className="font-medium">{service.partner_name}</span>
                        </div>
                      )}
-                     <div className="flex justify-end">
-                       <Button variant="outline" size="sm">
-                         <Settings className="mr-1 h-4 w-4" />
-                         Modifica
-                       </Button>
-                     </div>
+                      <div className="flex justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedService(service)
+                            setShowEditDialog(true)
+                          }}
+                        >
+                          <Settings className="mr-1 h-4 w-4" />
+                          Modifica
+                        </Button>
+                      </div>
                   </CardContent>
                 </Card>
               ))}
@@ -135,10 +145,14 @@ export default function Services() {
       <AddServiceDialog 
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
-        onServiceAdded={() => {
-          // Refresh services list
-          window.location.reload()
-        }}
+        onServiceAdded={refreshServices}
+      />
+      
+      <EditServiceDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        service={selectedService}
+        onServiceUpdated={refreshServices}
       />
     </div>
   )
