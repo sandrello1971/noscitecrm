@@ -78,7 +78,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      // If there's an error with the session (like expired token), sign out
+      if (error) {
+        console.error('Session error:', error)
+        supabase.auth.signOut()
+        return
+      }
+      
       setSession(session)
       setUser(session?.user ?? null)
       

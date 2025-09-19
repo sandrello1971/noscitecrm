@@ -33,15 +33,21 @@ export function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      // Only admins should see the user management section
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
+        throw new Error('Utente non autenticato')
+      }
+
       // Get current user role first
-      const { data: currentUserRole } = await supabase
+      const { data: currentUserRole, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user.id)
         .single()
 
-      if (currentUserRole?.role !== 'admin') {
+      if (roleError || currentUserRole?.role !== 'admin') {
         throw new Error('Non hai i permessi per accedere a questa sezione')
       }
 
@@ -138,16 +144,20 @@ export function UserManagement() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Use upsert to handle existing roles gracefully
-      const { error: upsertError } = await supabase
+      // First delete existing role for this user
+      await supabase
         .from('user_roles')
-        .upsert([{ user_id: userId, role: newRole as any }], { 
-          onConflict: 'user_id,role'
-        })
+        .delete()
+        .eq('user_id', userId)
 
-      if (upsertError) {
-        console.error('Upsert error:', upsertError)
-        throw upsertError
+      // Then insert the new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert([{ user_id: userId, role: newRole as any }])
+
+      if (insertError) {
+        console.error('Insert error:', insertError)
+        throw insertError
       }
 
       toast({
