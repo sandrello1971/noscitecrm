@@ -133,12 +133,146 @@ export default function Services() {
           )}
         </TabsContent>
 
-        <TabsContent value="simple">
-          <p className="text-muted-foreground">Servizi semplici - unità base della distinta base</p>
+        <TabsContent value="simple" className="space-y-4">
+          <p className="text-muted-foreground mb-4">Servizi semplici - unità base della distinta base</p>
+          {services.filter((service: any) => service.service_type === 'simple').length === 0 ? (
+            <Card>
+              <CardHeader className="text-center">
+                <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+                <CardTitle>Nessun servizio semplice trovato</CardTitle>
+                <CardDescription>
+                  Non ci sono servizi semplici nella distinta base
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {services
+                .filter((service: any) => service.service_type === 'simple')
+                .map((service: any) => (
+                  <Card key={service.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">{service.name}</CardTitle>
+                          <CardDescription>Codice: {service.code}</CardDescription>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="default">Semplice</Badge>
+                          <Badge variant={service.is_active ? "outline" : "destructive"}>
+                            {service.is_active ? "Attivo" : "Inattivo"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {service.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {service.description}
+                        </p>
+                      )}
+                      {service.unit_price && (
+                        <div className="flex items-center text-sm">
+                          <DollarSign className="mr-1 h-4 w-4 text-green-600" />
+                          <span className="font-medium">
+                            €{service.unit_price} / {service.unit_of_measure}
+                          </span>
+                        </div>
+                      )}
+                      {service.partner_name && (
+                        <div className="text-sm text-muted-foreground">
+                          👥 Partner: <span className="font-medium">{service.partner_name}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedService(service)
+                            setShowEditDialog(true)
+                          }}
+                        >
+                          <Settings className="mr-1 h-4 w-4" />
+                          Modifica
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="composed">
-          <p className="text-muted-foreground">Servizi composti - combinazioni di servizi semplici o altri servizi composti</p>
+        <TabsContent value="composed" className="space-y-4">
+          <p className="text-muted-foreground mb-4">Servizi composti - combinazioni di servizi semplici o altri servizi composti</p>
+          {services.filter((service: any) => service.service_type === 'composed').length === 0 ? (
+            <Card>
+              <CardHeader className="text-center">
+                <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+                <CardTitle>Nessun servizio composto trovato</CardTitle>
+                <CardDescription>
+                  Non ci sono servizi composti nella distinta base
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {services
+                .filter((service: any) => service.service_type === 'composed')
+                .map((service: any) => (
+                  <Card key={service.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">{service.name}</CardTitle>
+                          <CardDescription>Codice: {service.code}</CardDescription>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="secondary">Composto</Badge>
+                          <Badge variant={service.is_active ? "outline" : "destructive"}>
+                            {service.is_active ? "Attivo" : "Inattivo"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {service.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {service.description}
+                        </p>
+                      )}
+                      {service.unit_price && (
+                        <div className="flex items-center text-sm">
+                          <DollarSign className="mr-1 h-4 w-4 text-green-600" />
+                          <span className="font-medium">
+                            €{service.unit_price} / {service.unit_of_measure}
+                          </span>
+                        </div>
+                      )}
+                      {service.partner_name && (
+                        <div className="text-sm text-muted-foreground">
+                          👥 Partner: <span className="font-medium">{service.partner_name}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedService(service)
+                            setShowEditDialog(true)
+                          }}
+                        >
+                          <Settings className="mr-1 h-4 w-4" />
+                          Modifica
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
       
