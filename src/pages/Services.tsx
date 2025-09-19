@@ -2,17 +2,22 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Package, Settings, DollarSign } from "lucide-react"
+import { Plus, Package, Settings, DollarSign, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AddServiceDialog } from "@/components/forms/AddServiceDialog"
 import { EditServiceDialog } from "@/components/forms/EditServiceDialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Services() {
   const [services, setServices] = useState([])
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedService, setSelectedService] = useState(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [serviceToDelete, setServiceToDelete] = useState<any>(null)
+  const { toast } = useToast()
 
   const refreshServices = async () => {
     const { data } = await supabase
@@ -31,6 +36,37 @@ export default function Services() {
       }))
       setServices(servicesWithPartner)
     }
+  }
+
+  const handleDeleteService = (service: any) => {
+    setServiceToDelete(service)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDeleteService = async () => {
+    if (!serviceToDelete) return
+
+    const { error } = await supabase
+      .from('crm_services')
+      .delete()
+      .eq('id', serviceToDelete.id)
+
+    if (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il servizio",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Successo",
+        description: "Servizio eliminato con successo",
+      })
+      refreshServices()
+    }
+
+    setShowDeleteDialog(false)
+    setServiceToDelete(null)
   }
 
   useEffect(() => {
@@ -113,19 +149,27 @@ export default function Services() {
                          👥 Partner: <span className="font-medium">{service.partner_name}</span>
                        </div>
                      )}
-                      <div className="flex justify-end">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedService(service)
-                            setShowEditDialog(true)
-                          }}
-                        >
-                          <Settings className="mr-1 h-4 w-4" />
-                          Modifica
-                        </Button>
-                      </div>
+                       <div className="flex justify-end gap-2">
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => {
+                             setSelectedService(service)
+                             setShowEditDialog(true)
+                           }}
+                         >
+                           <Settings className="mr-1 h-4 w-4" />
+                           Modifica
+                         </Button>
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleDeleteService(service)}
+                         >
+                           <Trash2 className="mr-1 h-4 w-4" />
+                           Elimina
+                         </Button>
+                       </div>
                   </CardContent>
                 </Card>
               ))}
@@ -184,19 +228,27 @@ export default function Services() {
                           👥 Partner: <span className="font-medium">{service.partner_name}</span>
                         </div>
                       )}
-                      <div className="flex justify-end">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedService(service)
-                            setShowEditDialog(true)
-                          }}
-                        >
-                          <Settings className="mr-1 h-4 w-4" />
-                          Modifica
-                        </Button>
-                      </div>
+                       <div className="flex justify-end gap-2">
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => {
+                             setSelectedService(service)
+                             setShowEditDialog(true)
+                           }}
+                         >
+                           <Settings className="mr-1 h-4 w-4" />
+                           Modifica
+                         </Button>
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleDeleteService(service)}
+                         >
+                           <Trash2 className="mr-1 h-4 w-4" />
+                           Elimina
+                         </Button>
+                       </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -255,19 +307,27 @@ export default function Services() {
                           👥 Partner: <span className="font-medium">{service.partner_name}</span>
                         </div>
                       )}
-                      <div className="flex justify-end">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedService(service)
-                            setShowEditDialog(true)
-                          }}
-                        >
-                          <Settings className="mr-1 h-4 w-4" />
-                          Modifica
-                        </Button>
-                      </div>
+                       <div className="flex justify-end gap-2">
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => {
+                             setSelectedService(service)
+                             setShowEditDialog(true)
+                           }}
+                         >
+                           <Settings className="mr-1 h-4 w-4" />
+                           Modifica
+                         </Button>
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => handleDeleteService(service)}
+                         >
+                           <Trash2 className="mr-1 h-4 w-4" />
+                           Elimina
+                         </Button>
+                       </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -288,6 +348,24 @@ export default function Services() {
         service={selectedService}
         onServiceUpdated={refreshServices}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare il servizio "{serviceToDelete?.name}"? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteService}>
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
