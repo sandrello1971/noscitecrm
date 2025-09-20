@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Plus, X } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -27,30 +27,50 @@ interface Company {
 interface Service {
   id: string
   name: string
-  unit_price: number
+  code: string
+  unit_price?: number
 }
 
-export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }: AddOpportunityDialogProps) {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [expectedCloseDate, setExpectedCloseDate] = useState<Date>()
+interface OpportunityService {
+  temp_id: string
+  service_id: string
+  quantity: number
+  unit_price: number
+  notes: string
+}
+
+export function AddOpportunityDialog({ 
+  open, 
+  onOpenChange, 
+  onOpportunityAdded 
+}: AddOpportunityDialogProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     company_id: "",
-    service_id: "",
-    amount: "",
     win_probability: "50",
-    status: "in_attesa" as 'in_attesa' | 'acquisita' | 'persa',
+    status: "in_attesa" as const,
     notes: ""
   })
+  const [expectedCloseDate, setExpectedCloseDate] = useState<Date>()
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [opportunityServices, setOpportunityServices] = useState<OpportunityService[]>([])
+  const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (open) {
       loadCompanies()
       loadServices()
+      // Aggiungi un servizio vuoto di default
+      setOpportunityServices([{
+        temp_id: Date.now().toString(),
+        service_id: "",
+        quantity: 1,
+        unit_price: 0,
+        notes: ""
+      }])
     }
   }, [open])
 
@@ -73,7 +93,7 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
     try {
       const { data, error } = await supabase
         .from('crm_services')
-        .select('id, name, unit_price')
+        .select('id, name, code, unit_price')
         .eq('is_active', true)
         .order('name')
 
@@ -84,52 +104,115 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
     }
   }
 
-  const handleServiceChange = (serviceId: string) => {
-    setFormData(prev => ({ ...prev, service_id: serviceId }))
-    
-    const selectedService = services.find(s => s.id === serviceId)
-    if (selectedService && selectedService.unit_price) {
-      setFormData(prev => ({ ...prev, amount: selectedService.unit_price.toString() }))
-    }
+  const addService = () => {
+    setOpportunityServices(prev => [
+      ...prev,
+      {
+        temp_id: Date.now().toString(),
+        service_id: "",
+        quantity: 1,
+        unit_price: 0,
+        notes: ""
+      }
+    ])
+  }
+
+  const removeService = (tempId: string) => {
+    setOpportunityServices(prev => prev.filter(s => s.temp_id !== tempId))
+  }
+
+  const updateService = (tempId: string, field: keyof OpportunityService, value: any) => {
+    setOpportunityServices(prev => prev.map(service => {
+      if (service.temp_id === tempId) {
+        const updatedService = { ...service, [field]: value }
+        
+        // Se cambio il servizio, aggiorna automaticamente il prezzo unitario
+        if (field === 'service_id') {
+          const selectedService = services.find(s => s.id === value)
+          if (selectedService?.unit_price) {
+            updatedService.unit_price = selectedService.unit_price
+          }
+        }
+        
+        return updatedService
+      }
+      return service
+    }))
+  }
+
+  const calculateTotal = () => {
+    return opportunityServices.reduce((total, service) => {
+      return total + (service.quantity * service.unit_price)
+    }, 0)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.title.trim() || !formData.company_id) {
+      toast({
+        title: "Errore",
+        description: "Compila i campi obbligatori (Titolo e Cliente)",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Verifica che ci sia almeno un servizio valido
+    const validServices = opportunityServices.filter(s => s.service_id && s.quantity > 0)
+    if (validServices.length === 0) {
+      toast({
+        title: "Errore",
+        description: "Aggiungi almeno un servizio valido",
+        variant: "destructive"
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      const opportunityData = {
-        user_id: user.id,
-        title: formData.title,
-        description: formData.description || null,
-        company_id: formData.company_id,
-        service_id: formData.service_id,
-        amount: parseFloat(formData.amount) || 0,
-        win_probability: parseInt(formData.win_probability),
-        expected_close_date: expectedCloseDate?.toISOString().split('T')[0] || null,
-        notes: formData.notes || null,
-        status: formData.status
-      }
-
-      const { error } = await supabase
+      // 1. Crea l'opportunità
+      const { data: opportunityData, error: opportunityError } = await supabase
         .from('opportunities')
-        .insert([opportunityData])
+        .insert({
+          title: formData.title.trim(),
+          description: formData.description.trim() || null,
+          company_id: formData.company_id,
+          amount: calculateTotal(),
+          win_probability: parseInt(formData.win_probability),
+          status: formData.status,
+          expected_close_date: expectedCloseDate?.toISOString().split('T')[0] || null,
+          notes: formData.notes.trim() || null
+        })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (opportunityError) throw opportunityError
+
+      // 2. Aggiungi i servizi
+      const servicesToInsert = validServices.map(service => ({
+        opportunity_id: opportunityData.id,
+        service_id: service.service_id,
+        quantity: service.quantity,
+        unit_price: service.unit_price,
+        notes: service.notes.trim() || null
+      }))
+
+      const { error: servicesError } = await supabase
+        .from('opportunity_services')
+        .insert(servicesToInsert)
+
+      if (servicesError) throw servicesError
 
       toast({
-        title: "Opportunità creata",
-        description: "L'opportunità è stata creata con successo.",
+        title: "Successo",
+        description: "Opportunità creata con successo",
       })
       
       onOpportunityAdded?.()
       resetForm()
+      onOpenChange(false)
     } catch (error: any) {
       console.error('Error creating opportunity:', error)
       toast({
@@ -147,13 +230,12 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
       title: "",
       description: "",
       company_id: "",
-      service_id: "",
-      amount: "",
       win_probability: "50",
       status: "in_attesa" as const,
       notes: ""
     })
     setExpectedCloseDate(undefined)
+    setOpportunityServices([])
   }
 
   const updateFormData = (field: string, value: any) => {
@@ -162,15 +244,15 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Aggiungi Nuova Opportunità</DialogTitle>
           <DialogDescription>
-            Inserisci i dati della nuova opportunità di vendita
+            Inserisci i dati della nuova opportunità di vendita con i servizi associati
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="title">Titolo Opportunità *</Label>
             <Input
@@ -198,108 +280,18 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="service_id">Servizio *</Label>
-              <Select value={formData.service_id} onValueChange={handleServiceChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona un servizio" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Valore (€) *</Label>
+              <Label htmlFor="win_probability">Probabilità di Successo (%)</Label>
               <Input
-                id="amount"
+                id="win_probability"
                 type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => updateFormData("amount", e.target.value)}
-                placeholder="5000.00"
-                required
+                min="0"
+                max="100"
+                value={formData.win_probability}
+                onChange={(e) => updateFormData("win_probability", e.target.value)}
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="win_probability">Probabilità di Vittoria (%) *</Label>
-              <Select value={formData.win_probability} onValueChange={(value) => updateFormData("win_probability", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10% - Molto bassa</SelectItem>
-                  <SelectItem value="25">25% - Bassa</SelectItem>
-                  <SelectItem value="50">50% - Media</SelectItem>
-                  <SelectItem value="75">75% - Alta</SelectItem>
-                  <SelectItem value="90">90% - Molto alta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Stato Iniziale</Label>
-            <Select value={formData.status} onValueChange={(value: 'in_attesa' | 'acquisita' | 'persa') => updateFormData("status", value)}>
-              <SelectTrigger className="bg-background border border-input">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border border-input shadow-lg z-50">
-                <SelectItem value="in_attesa" className="hover:bg-accent">
-                  <div className="flex items-center">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                    In Attesa
-                  </div>
-                </SelectItem>
-                <SelectItem value="acquisita" className="hover:bg-accent">
-                  <div className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    Acquisita
-                  </div>
-                </SelectItem>
-                <SelectItem value="persa" className="hover:bg-accent">
-                  <div className="flex items-center">
-                    <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                    Persa
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Data Chiusura Prevista</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !expectedCloseDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {expectedCloseDate ? format(expectedCloseDate, "dd/MM/yyyy") : "Seleziona data"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={expectedCloseDate}
-                  onSelect={setExpectedCloseDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
           </div>
 
           <div className="space-y-2">
@@ -313,14 +305,152 @@ export function AddOpportunityDialog({ open, onOpenChange, onOpportunityAdded }:
             />
           </div>
 
+          {/* Sezione Servizi */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label className="text-base font-medium">Servizi *</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addService}>
+                <Plus className="w-4 h-4 mr-2" />
+                Aggiungi Servizio
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {opportunityServices.map((service) => (
+                <div key={service.temp_id} className="grid grid-cols-12 gap-3 items-end p-3 border rounded-lg">
+                  <div className="col-span-5">
+                    <Label className="text-sm">Servizio</Label>
+                    <Select 
+                      value={service.service_id} 
+                      onValueChange={(value) => updateService(service.temp_id, "service_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona servizio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services.map((serviceItem) => (
+                          <SelectItem key={serviceItem.id} value={serviceItem.id}>
+                            {serviceItem.code} - {serviceItem.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Label className="text-sm">Quantità</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="0.001"
+                      value={service.quantity}
+                      onChange={(e) => updateService(service.temp_id, "quantity", parseFloat(e.target.value) || 1)}
+                    />
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Label className="text-sm">Prezzo Unitario</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={service.unit_price}
+                      onChange={(e) => updateService(service.temp_id, "unit_price", parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Label className="text-sm">Totale</Label>
+                    <div className="h-10 px-3 py-2 border rounded-md bg-muted text-sm">
+                      €{(service.quantity * service.unit_price).toFixed(2)}
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-1">
+                    {opportunityServices.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeService(service.temp_id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Note del servizio (riga separata) */}
+                  <div className="col-span-12">
+                    <Label className="text-sm">Note (opzionale)</Label>
+                    <Input
+                      placeholder="Note specifiche per questo servizio..."
+                      value={service.notes}
+                      onChange={(e) => updateService(service.temp_id, "notes", e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Totale generale */}
+            <div className="flex justify-end">
+              <div className="text-right">
+                <Label className="text-sm text-muted-foreground">Totale Opportunità</Label>
+                <div className="text-2xl font-bold">€{calculateTotal().toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Data Chiusura Prevista</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !expectedCloseDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {expectedCloseDate ? format(expectedCloseDate, "dd/MM/yyyy") : "Seleziona data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={expectedCloseDate}
+                    onSelect={setExpectedCloseDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => updateFormData("status", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="in_attesa">In Attesa</SelectItem>
+                  <SelectItem value="acquisita">Acquisita</SelectItem>
+                  <SelectItem value="persa">Persa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Note</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) => updateFormData("notes", e.target.value)}
-              placeholder="Note aggiuntive, contatti, stato trattativa..."
-              rows={2}
+              placeholder="Note aggiuntive sull'opportunità..."
+              rows={3}
             />
           </div>
 
