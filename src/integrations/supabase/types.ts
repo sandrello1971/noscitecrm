@@ -1887,7 +1887,6 @@ export type Database = {
           expected_close_date: string | null
           id: string
           notes: string | null
-          service_id: string
           status: Database["public"]["Enums"]["opportunity_status"] | null
           title: string
           updated_at: string
@@ -1902,7 +1901,6 @@ export type Database = {
           expected_close_date?: string | null
           id?: string
           notes?: string | null
-          service_id: string
           status?: Database["public"]["Enums"]["opportunity_status"] | null
           title: string
           updated_at?: string
@@ -1917,7 +1915,6 @@ export type Database = {
           expected_close_date?: string | null
           id?: string
           notes?: string | null
-          service_id?: string
           status?: Database["public"]["Enums"]["opportunity_status"] | null
           title?: string
           updated_at?: string
