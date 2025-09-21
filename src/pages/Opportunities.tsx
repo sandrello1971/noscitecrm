@@ -32,6 +32,7 @@ interface Opportunity {
   company_name?: string
   company_id?: string
   created_at: string
+  user_id: string
   services?: OpportunityService[]
 }
 
@@ -96,6 +97,7 @@ export default function Opportunities() {
         company_name: item.crm_companies?.name,
         company_id: item.company_id,
         created_at: item.created_at,
+        user_id: item.user_id,
         services: servicesMap.get(item.id) || []
       })) || []
 
@@ -120,7 +122,7 @@ export default function Opportunities() {
     try {
       const { error } = await supabase
         .from('opportunities')
-        .update({ status: newStatus })
+        .update({ status: newStatus as "in_attesa" | "acquisita" | "persa" })
         .eq('id', opportunityId)
 
       if (error) throw error

@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface EditOpportunityDialogProps {
   open: boolean
@@ -27,6 +28,7 @@ interface EditOpportunityDialogProps {
     expected_close_date?: string
     notes?: string
     company_id?: string
+    user_id: string
   } | null
 }
 
@@ -72,6 +74,7 @@ export function EditOpportunityDialog({
   const [opportunityServices, setOpportunityServices] = useState<OpportunityService[]>([])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const { user } = useAuth()
 
   useEffect(() => {
     if (open && opportunity) {
@@ -132,7 +135,7 @@ export function EditOpportunityDialog({
         .from('opportunity_services')
         .select(`
           *,
-          crm_services!opportunity_services_service_id_fkey(name, code)
+          crm_services(name, code)
         `)
         .eq('opportunity_id', opportunity.id)
 
@@ -257,7 +260,9 @@ export function EditOpportunityDialog({
         service_id: service.service_id,
         quantity: service.quantity,
         unit_price: service.unit_price,
-        notes: service.notes.trim() || null
+        total_price: service.quantity * service.unit_price,
+        notes: service.notes.trim() || null,
+        user_id: user?.id || opportunity.user_id
       }))
 
       const { error: insertError } = await supabase

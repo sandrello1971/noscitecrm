@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface AddOpportunityDialogProps {
   open: boolean
@@ -58,6 +59,7 @@ export function AddOpportunityDialog({
   const [opportunityServices, setOpportunityServices] = useState<OpportunityService[]>([])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const { user } = useAuth()
 
   useEffect(() => {
     if (open) {
@@ -183,7 +185,8 @@ export function AddOpportunityDialog({
           win_probability: parseInt(formData.win_probability),
           status: formData.status,
           expected_close_date: expectedCloseDate?.toISOString().split('T')[0] || null,
-          notes: formData.notes.trim() || null
+          notes: formData.notes.trim() || null,
+          user_id: user.id
         })
         .select()
         .single()
@@ -196,7 +199,9 @@ export function AddOpportunityDialog({
         service_id: service.service_id,
         quantity: service.quantity,
         unit_price: service.unit_price,
-        notes: service.notes.trim() || null
+        total_price: service.quantity * service.unit_price,
+        notes: service.notes.trim() || null,
+        user_id: user.id
       }))
 
       const { error: servicesError } = await supabase

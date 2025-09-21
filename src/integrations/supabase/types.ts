@@ -1929,8 +1929,55 @@ export type Database = {
             referencedRelation: "crm_companies"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      opportunity_services: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          opportunity_id: string
+          quantity: number
+          service_id: string
+          total_price: number
+          unit_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opportunity_id: string
+          quantity?: number
+          service_id: string
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opportunity_id?: string
+          quantity?: number
+          service_id?: string
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "opportunities_service_id_fkey"
+            foreignKeyName: "opportunity_services_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_services_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "crm_services"
@@ -2423,6 +2470,7 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           updated_at: string | null
+          user_id: string
           vat_number: string | null
         }
         Insert: {
@@ -2436,6 +2484,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           updated_at?: string | null
+          user_id: string
           vat_number?: string | null
         }
         Update: {
@@ -2449,6 +2498,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           updated_at?: string | null
+          user_id?: string
           vat_number?: string | null
         }
         Relationships: []
