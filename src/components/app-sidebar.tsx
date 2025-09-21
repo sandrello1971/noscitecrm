@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -53,10 +54,39 @@ export function AppSidebar() {
       className={state === "collapsed" ? "w-14" : "w-60"}
       collapsible="icon"
     >
+      {/* Header con Logo */}
+      <SidebarHeader className="border-b">
+        <div className="flex items-center gap-3 px-3 py-4">
+          {state !== "collapsed" ? (
+            // Logo completo quando sidebar è aperta
+            <div className="flex items-center gap-3">
+              <img 
+                src="/nosciteLOGO.png" 
+                alt="Noscite" 
+                className="h-8 w-8 object-contain"
+              />
+              <div className="flex flex-col">
+                <span className="font-bold text-lg text-[#5DACA8]">NOSCITE</span>
+                <span className="text-xs text-[#E07A47] font-medium -mt-1">
+                  In digitali nova virtūs
+                </span>
+              </div>
+            </div>
+          ) : (
+            // Solo logo quando sidebar è chiusa
+            <img 
+              src="/nosciteLOGO.png" 
+              alt="Noscite" 
+              className="h-8 w-8 object-contain mx-auto"
+            />
+          )}
+        </div>
+      </SidebarHeader>
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            CRM Noscite
+            CRM
             {isAdmin && <span className="text-xs text-blue-600 ml-2">(Admin)</span>}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -75,12 +105,13 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleSignOut}>
               <LogOut className="size-4" />
-              <span>Esci</span>
+              {state !== "collapsed" && <span>Esci</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
