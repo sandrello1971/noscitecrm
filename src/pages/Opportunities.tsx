@@ -52,29 +52,34 @@ export default function Opportunities() {
   const { toast } = useToast()
 
   const loadOpportunities = async () => {
+    setLoading(true)
     try {
-      // Carica le opportunità
+      console.log("🔄 Inizio caricamento opportunità...")
+      
+      // 1. Carica le opportunità
       const { data: opportunitiesData, error: opportunitiesError } = await supabase
         .from('opportunities')
         .select(`
           *,
-          crm_companies!opportunities_company_id_fkey(name)
+          crm_companies(name)
         `)
         .order('created_at', { ascending: false })
 
       if (opportunitiesError) throw opportunitiesError
+      console.log("🔵 Opportunità caricate:", opportunitiesData)
 
-      // Carica i servizi per ogni opportunità
+      // 2. Carica i servizi per ogni opportunità con sintassi corretta
       const { data: servicesData, error: servicesError } = await supabase
         .from('opportunity_services')
         .select(`
           *,
-          crm_services(id, name, code)
+          crm_services(name, code)
         `)
 
       if (servicesError) throw servicesError
+      console.log("🟢 Servizi caricati:", servicesData)
 
-      // Raggruppa i servizi per opportunità
+      // 3. Raggruppa i servizi per opportunità
       const servicesMap = new Map()
       servicesData?.forEach(service => {
         if (!servicesMap.has(service.opportunity_id)) {
@@ -91,7 +96,9 @@ export default function Opportunities() {
         })
       })
 
-      // Combina opportunità e servizi
+      console.log("🟡 ServicesMap creata:", servicesMap)
+
+      // 4. Combina opportunità e servizi
       const mappedData = opportunitiesData?.map(item => ({
         id: item.id,
         title: item.title,
@@ -107,9 +114,11 @@ export default function Opportunities() {
         services: servicesMap.get(item.id) || []
       })) || []
 
+      console.log("🔴 Dati finali mappati:", mappedData)
+
       setOpportunities(mappedData)
     } catch (error: any) {
-      console.error('Error loading opportunities:', error)
+      console.error('❌ Errore caricamento opportunità:', error)
       toast({
         title: "Errore",
         description: "Impossibile caricare le opportunità",
@@ -123,6 +132,64 @@ export default function Opportunities() {
   useEffect(() => {
     loadOpportunities()
   }, [])
+
+  // Status change handler
+  const handleStatusChange = async (opportunityId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ status: newStatus })
+        .eq('id', opportunityId)
+
+      if (error) throw error
+
+      toast({
+        title: "Successo",
+        description: "Status opportunità aggiornato"
+      })
+
+      await loadOpportunities()
+    } catch (error: any) {
+      console.error('Error updating status:', error)
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo status",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Delete opportunity handler
+  const handleDeleteOpportunity = async (opportunityId: string) => {
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .delete()
+        .eq('id', opportunityId)
+
+      if (error) throw error
+
+      toast({
+        title: "Successo",
+        description: "Opportunità eliminata"
+      })
+
+      await loadOpportunities()
+    } catch (error: any) {
+      console.error('Error deleting opportunity:', error)
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare l'opportunità",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Edit opportunity handler
+  const handleEditOpportunity = (opportunity: Opportunity) => {
+    setSelectedOpportunity(opportunity)
+    setShowEditDialog(true)
+  }
 
   // Filtro e ricerca delle opportunità
   const filteredAndSortedOpportunities = useMemo(() => {
@@ -172,73 +239,36 @@ export default function Opportunities() {
           aValue = a.expected_close_date ? new Date(a.expected_close_date).getTime() : 0
           bValue = b.expected_close_date ? new Date(b.expected_close_date).getTime() : 0
           break
-        default: // created_at
+        default:
           aValue = new Date(a.created_at).getTime()
           bValue = new Date(b.created_at).getTime()
       }
 
-      if (typeof aValue === 'string') {
-        return sortOrder === 'asc' 
-          ? aValue.localeCompare(bValue as string)
-          : (bValue as string).localeCompare(aValue)
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
       } else {
-        return sortOrder === 'asc' 
-          ? (aValue as number) - (bValue as number)
-          : (bValue as number) - (aValue as number)
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
       }
     })
 
     return filtered
   }, [opportunities, searchTerm, statusFilter, sortBy, sortOrder])
 
-  const handleStatusChange = async (opportunityId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('opportunities')
-        .update({ status: newStatus as "in_attesa" | "acquisita" | "persa" })
-        .eq('id', opportunityId)
-
-      if (error) throw error
-
-      toast({
-        title: "Successo",
-        description: "Status dell'opportunità aggiornato",
-      })
-
-      loadOpportunities()
-    } catch (error: any) {
-      console.error('Error updating opportunity status:', error)
-      toast({
-        title: "Errore",
-        description: "Errore durante l'aggiornamento dello status",
-        variant: "destructive"
-      })
-    }
+  // Funzioni di calcolo per le statistiche
+  const calculateTotalValue = () => {
+    return filteredAndSortedOpportunities.reduce((sum, opp) => sum + opp.amount, 0)
   }
 
-  const handleDeleteOpportunity = async (opportunityId: string) => {
-    try {
-      const { error } = await supabase
-        .from('opportunities')
-        .delete()
-        .eq('id', opportunityId)
+  const calculateWonValue = () => {
+    return filteredAndSortedOpportunities
+      .filter(opp => opp.status === 'acquisita')
+      .reduce((sum, opp) => sum + opp.amount, 0)
+  }
 
-      if (error) throw error
-
-      toast({
-        title: "Successo",
-        description: "Opportunità eliminata con successo",
-      })
-
-      loadOpportunities()
-    } catch (error: any) {
-      console.error('Error deleting opportunity:', error)
-      toast({
-        title: "Errore",
-        description: "Errore durante l'eliminazione dell'opportunità",
-        variant: "destructive"
-      })
-    }
+  const calculateWeightedValue = () => {
+    return filteredAndSortedOpportunities.reduce((sum, opp) => {
+      return sum + (opp.amount * opp.win_probability / 100)
+    }, 0)
   }
 
   const clearFilters = () => {
@@ -251,96 +281,88 @@ export default function Opportunities() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_attesa':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />In Attesa</Badge>
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><Clock className="w-3 h-3 mr-1" />In Attesa</Badge>
       case 'acquisita':
-        return <Badge variant="default" className="bg-green-600"><CheckCircle className="w-3 h-3 mr-1" />Acquisita</Badge>
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Acquisita</Badge>
       case 'persa':
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Persa</Badge>
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200"><XCircle className="w-3 h-3 mr-1" />Persa</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  const calculateTotalValue = () => {
-    return filteredAndSortedOpportunities.reduce((total, opp) => total + opp.amount, 0)
-  }
-
-  const calculateWonValue = () => {
-    return filteredAndSortedOpportunities
-      .filter(opp => opp.status === 'acquisita')
-      .reduce((total, opp) => total + opp.amount, 0)
-  }
-
-  const calculateWeightedValue = () => {
-    return filteredAndSortedOpportunities
-      .filter(opp => opp.status === 'in_attesa')
-      .reduce((total, opp) => total + (opp.amount * opp.win_probability / 100), 0)
-  }
-
   if (loading) {
-    return <div className="p-6">Caricamento...</div>
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+            <p className="mt-4 text-muted-foreground">Caricamento opportunità...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Opportunità</h1>
           <p className="text-muted-foreground">
-            Gestisci le opportunità di vendita - {filteredAndSortedOpportunities.length} di {opportunities.length} opportunità
+            Gestisci le opportunità di vendita - {opportunities.length} di {opportunities.length} opportunità
           </p>
         </div>
         <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Nuova Opportunità
         </Button>
       </div>
 
-      {/* Barra di ricerca e filtri */}
+      {/* Filtri e ricerca */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Campo ricerca */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca per titolo, cliente, descrizione, servizi..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex-1 min-w-[250px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Cerca per titolo, cliente, descrizione o servizio..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
 
-            {/* Filtro status */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[150px]">
+                <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti</SelectItem>
                 <SelectItem value="in_attesa">In Attesa</SelectItem>
-                <SelectItem value="acquisita">Acquisita</SelectItem>
-                <SelectItem value="persa">Persa</SelectItem>
+                <SelectItem value="acquisita">Acquisite</SelectItem>
+                <SelectItem value="persa">Perse</SelectItem>
               </SelectContent>
             </Select>
 
-            {/* Ordinamento */}
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Ordina per" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="created_at">Data Creazione</SelectItem>
                 <SelectItem value="title">Titolo</SelectItem>
                 <SelectItem value="company">Cliente</SelectItem>
-                <SelectItem value="amount">Importo</SelectItem>
+                <SelectItem value="amount">Valore</SelectItem>
                 <SelectItem value="win_probability">Probabilità</SelectItem>
                 <SelectItem value="expected_close_date">Data Chiusura</SelectItem>
               </SelectContent>
             </Select>
 
-            {/* Direzione ordinamento */}
             <Button
               variant="outline"
               size="sm"
@@ -360,7 +382,7 @@ export default function Opportunities() {
         </CardContent>
       </Card>
 
-      {/* Cards statistiche (basate sui risultati filtrati) */}
+      {/* Cards statistiche */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -419,7 +441,7 @@ export default function Opportunities() {
         </Card>
       </div>
 
-      {/* Lista opportunità raggruppate per cliente */}
+      {/* Lista opportunità */}
       {filteredAndSortedOpportunities.length === 0 ? (
         <Card>
           <CardContent className="text-center py-8">
@@ -451,60 +473,56 @@ export default function Opportunities() {
                     {clientOpportunities.length} opportunità
                   </Badge>
                 </div>
-                <div className="text-right text-sm text-muted-foreground">
-                  Valore totale: €{clientOpportunities.reduce((sum, opp) => sum + opp.amount, 0).toLocaleString()}
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Valore totale cliente</p>
+                  <p className="text-lg font-semibold">
+                    €{clientOpportunities.reduce((sum, opp) => sum + opp.amount, 0).toLocaleString()}
+                  </p>
                 </div>
               </div>
 
               {/* Opportunità del cliente */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {clientOpportunities.map((opportunity) => (
                   <Card key={opportunity.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
+                    <CardHeader className="pb-4">
                       <div className="flex justify-between items-start">
-                        <div className="space-y-2">
-                          <CardTitle className="text-lg">{opportunity.title}</CardTitle>
-                          {opportunity.expected_close_date && (
-                            <CardDescription>
-                              Chiusura prevista: {new Date(opportunity.expected_close_date).toLocaleDateString('it-IT')}
-                            </CardDescription>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg truncate">{opportunity.title}</CardTitle>
+                          <CardDescription className="mt-1">
+                            {getStatusBadge(opportunity.status)}
+                          </CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(opportunity.status)}
-                          <div className="flex gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedOpportunity(opportunity)
-                                setShowEditDialog(true)
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Eliminare l'opportunità?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Questa azione non può essere annullata. L'opportunità e tutti i servizi associati verranno eliminati definitivamente.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annulla</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteOpportunity(opportunity.id)}>
-                                    Elimina
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                        <div className="flex items-center gap-2 ml-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEditOpportunity(opportunity)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Eliminare l'opportunità?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Sei sicuro di voler eliminare l'opportunità "{opportunity.title}"? 
+                                  L'opportunità e tutti i servizi associati verranno eliminati definitivamente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteOpportunity(opportunity.id)}>
+                                  Elimina
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     </CardHeader>
@@ -515,22 +533,26 @@ export default function Opportunities() {
                           <p className="text-sm text-muted-foreground">{opportunity.description}</p>
                         )}
                         
-                        {/* Lista servizi compatta */}
+                        {/* Lista servizi compatta - QUI È IL PEZZO IMPORTANTE */}
                         <div>
                           <h4 className="text-sm font-medium mb-2">Servizi:</h4>
-                          <div className="space-y-1">
-                            {opportunity.services?.slice(0, 2).map((service) => (
-                              <div key={service.id} className="flex justify-between text-sm">
-                                <span className="truncate">{service.service_name}</span>
-                                <span className="text-muted-foreground">×{service.quantity}</span>
-                              </div>
-                            ))}
-                            {opportunity.services && opportunity.services.length > 2 && (
-                              <div className="text-xs text-muted-foreground">
-                                ...e altri {opportunity.services.length - 2} servizi
-                              </div>
-                            )}
-                          </div>
+                          {opportunity.services && opportunity.services.length > 0 ? (
+                            <div className="space-y-1">
+                              {opportunity.services.slice(0, 2).map((service) => (
+                                <div key={service.id} className="flex justify-between text-sm">
+                                  <span className="truncate">{service.service_name}</span>
+                                  <span className="text-muted-foreground">×{service.quantity}</span>
+                                </div>
+                              ))}
+                              {opportunity.services.length > 2 && (
+                                <div className="text-xs text-muted-foreground">
+                                  ...e altri {opportunity.services.length - 2} servizi
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">Nessun servizio configurato</p>
+                          )}
                         </div>
                         
                         <div className="flex justify-between items-end pt-2 border-t">
