@@ -93,7 +93,7 @@ export function EditOrderDialog({
   const [orderServices, setOrderServices] = useState<OrderService[]>([])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
 
   useEffect(() => {
     if (open && order) {
@@ -330,7 +330,8 @@ export function EditOrderDialog({
         quantity: service.quantity,
         unit_price: service.unit_price,
         total_price: service.quantity * service.unit_price,
-        notes: service.notes.trim() || null
+        notes: service.notes.trim() || null,
+        user_id: user?.id || ''
       }))
 
       const { error: insertError } = await supabase

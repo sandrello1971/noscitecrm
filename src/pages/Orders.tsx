@@ -98,6 +98,8 @@ export default function Orders() {
       // Per ora iniziamo senza i servizi e le sotto-commesse per testare
       const mappedData = ordersData?.map(order => ({
         ...order,
+        status: order.status as "active" | "draft" | "completed" | "on_hold" | "cancelled",
+        priority: order.priority as "low" | "medium" | "high" | "urgent",
         company_name: order.crm_companies?.name,
         parent_order_title: undefined, // TODO: Aggiungere dopo
         services: [], // TODO: Aggiungere dopo
@@ -319,17 +321,18 @@ export default function Orders() {
 
   const getStatusBadge = (status: string) => {
     const config = {
-      'draft': { variant: 'secondary' as const, icon: Clock, label: 'Bozza' },
-      'active': { variant: 'default' as const, icon: CheckCircle, label: 'Attiva' },
-      'on_hold': { variant: 'outline' as const, icon: Pause, label: 'In Sospeso' },
+      'draft': { variant: 'secondary' as const, icon: Clock, label: 'Bozza', className: undefined },
+      'active': { variant: 'default' as const, icon: CheckCircle, label: 'Attiva', className: undefined },
+      'on_hold': { variant: 'outline' as const, icon: Pause, label: 'In Sospeso', className: undefined },
       'completed': { variant: 'default' as const, icon: CheckCircle, label: 'Completata', className: 'bg-green-600' },
-      'cancelled': { variant: 'destructive' as const, icon: XCircle, label: 'Annullata' }
+      'cancelled': { variant: 'destructive' as const, icon: XCircle, label: 'Annullata', className: undefined }
     }
 
-    const { variant, icon: Icon, label, className } = config[status as keyof typeof config] || config.draft
+    const statusConfig = config[status as keyof typeof config] || config.draft
+    const { variant, icon: Icon, label, className } = statusConfig
 
     return (
-      <Badge variant={variant} className={className}>
+      <Badge variant={variant} className={className || ''}>
         <Icon className="w-3 h-3 mr-1" />
         {label}
       </Badge>
