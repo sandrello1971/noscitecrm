@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, Mail, Phone, Building2, Edit, Trash2, Search, X, UserCheck, Crown } from "lucide-react"
 import { AddContactDialog } from "@/components/forms/AddContactDialog"
-import { EditContactDialog } from "@/components/forms/EditContactDialog"
+// import { EditContactDialog } from "@/components/forms/EditContactDialog" // TODO: Create this component
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
@@ -205,8 +205,13 @@ export default function Contacts() {
   }, [contacts, searchTerm, statusFilter, typeFilter, companyFilter, sortBy, sortOrder])
 
   const handleEditContact = (contact: Contact) => {
-    setSelectedContact(contact)
-    setShowEditDialog(true)
+    // TODO: Implement when EditContactDialog is created
+    toast({
+      title: "Funzionalità in sviluppo",
+      description: "La modifica dei contatti sarà disponibile presto",
+    })
+    // setSelectedContact(contact)
+    // setShowEditDialog(true)
   }
 
   const handleDeleteContact = (contact: Contact) => {
@@ -574,12 +579,14 @@ export default function Contacts() {
         onContactAdded={loadContacts}
       />
 
+      {/* TODO: Add EditContactDialog when component is created
       <EditContactDialog 
         open={showEditDialog} 
         onOpenChange={setShowEditDialog}
         contact={selectedContact}
         onContactUpdated={loadContacts}
       />
+      */}
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
