@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Plus, ShoppingCart, Calendar, User, DollarSign, BarChart3, Edit, Trash2, Search, X, Clock, CheckCircle, Pause, AlertCircle, XCircle } from "lucide-react"
 import { AddOrderDialog } from "@/components/forms/AddOrderDialog"
-// import { EditOrderDialog } from "@/components/forms/EditOrderDialog" // TODO: Create this component
+import { EditOrderDialog } from "@/components/forms/EditOrderDialog"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
@@ -96,10 +96,8 @@ export default function Orders() {
       }
 
       // Per ora iniziamo senza i servizi e le sotto-commesse per testare
-      const mappedData: Order[] = ordersData?.map(order => ({
+      const mappedData = ordersData?.map(order => ({
         ...order,
-        status: order.status as "active" | "draft" | "completed" | "on_hold" | "cancelled",
-        priority: order.priority as "high" | "low" | "medium" | "urgent",
         company_name: order.crm_companies?.name,
         parent_order_title: undefined, // TODO: Aggiungere dopo
         services: [], // TODO: Aggiungere dopo
@@ -271,13 +269,8 @@ export default function Orders() {
   }, [orders, activeTab, searchTerm, statusFilter, priorityFilter, companyFilter, progressFilter, sortBy, sortOrder])
 
   const handleEditOrder = (order: Order) => {
-    // TODO: Implement when EditOrderDialog is created
-    toast({
-      title: "Funzionalità in sviluppo",
-      description: "La modifica delle commesse sarà disponibile presto",
-    })
-    // setSelectedOrder(order)
-    // setShowEditDialog(true)
+    setSelectedOrder(order)
+    setShowEditDialog(true)
   }
 
   const handleDeleteOrder = (order: Order) => {
@@ -333,12 +326,10 @@ export default function Orders() {
       'cancelled': { variant: 'destructive' as const, icon: XCircle, label: 'Annullata' }
     }
 
-    const configItem = config[status as keyof typeof config] || config.draft
-    const { variant, icon: Icon, label } = configItem
-    const className = 'className' in configItem ? (configItem as any).className : undefined
+    const { variant, icon: Icon, label, className } = config[status as keyof typeof config] || config.draft
 
     return (
-      <Badge variant={variant} className={className || ""}>
+      <Badge variant={variant} className={className}>
         <Icon className="w-3 h-3 mr-1" />
         {label}
       </Badge>
@@ -758,14 +749,12 @@ export default function Orders() {
         onOrderAdded={loadOrders}
       />
 
-      {/* TODO: Add EditOrderDialog when component is created
       <EditOrderDialog 
         open={showEditDialog} 
         onOpenChange={setShowEditDialog}
         order={selectedOrder}
         onOrderUpdated={loadOrders}
       />
-      */}
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
