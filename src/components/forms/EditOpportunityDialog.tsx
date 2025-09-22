@@ -28,7 +28,7 @@ interface EditOpportunityDialogProps {
     expected_close_date?: string
     notes?: string
     company_id?: string
-    user_id: string
+    user_id?: string
   } | null
 }
 

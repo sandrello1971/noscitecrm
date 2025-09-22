@@ -112,7 +112,7 @@ export default function Services() {
         usage_count: usageMap.get(service.id) || 0
       })) || []
 
-      setServices(mappedData)
+      setServices(mappedData as Service[])
     } catch (error: any) {
       console.error('Error loading services:', error)
       toast({

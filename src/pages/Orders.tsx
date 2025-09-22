@@ -139,12 +139,12 @@ export default function Orders() {
       const mappedData = ordersData?.map(order => ({
         ...order,
         company_name: order.crm_companies?.name,
-        parent_order_title: order.parent_order?.title,
+        parent_order_title: order.parent_order?.[0]?.title,
         services: servicesMap.get(order.id) || [],
         sub_orders_count: subOrdersMap.get(order.id) || 0
       })) || []
 
-      setOrders(mappedData)
+      setOrders(mappedData as Order[])
     } catch (error: any) {
       console.error('Error loading orders:', error)
       toast({
@@ -364,10 +364,10 @@ export default function Orders() {
       'cancelled': { variant: 'destructive' as const, icon: XCircle, label: 'Annullata' }
     }
 
-    const { variant, icon: Icon, label, className } = config[status as keyof typeof config] || config.draft
+    const { variant, icon: Icon, label } = config[status as keyof typeof config] || config.draft
 
     return (
-      <Badge variant={variant} className={className}>
+      <Badge variant={variant}>
         <Icon className="w-3 h-3 mr-1" />
         {label}
       </Badge>

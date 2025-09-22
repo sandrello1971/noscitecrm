@@ -33,6 +33,7 @@ interface Opportunity {
   company_name?: string
   company_id?: string
   created_at: string
+  user_id?: string
   services?: OpportunityService[]
 }
 
@@ -195,7 +196,7 @@ export default function Opportunities() {
     try {
       const { error } = await supabase
         .from('opportunities')
-        .update({ status: newStatus })
+        .update({ status: newStatus as "in_attesa" | "acquisita" | "persa" })
         .eq('id', opportunityId)
 
       if (error) throw error
@@ -570,7 +571,7 @@ export default function Opportunities() {
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         onOpportunityUpdated={loadOpportunities}
-        opportunity={selectedOpportunity}
+        opportunity={selectedOpportunity!}
       />
     </div>
   )
