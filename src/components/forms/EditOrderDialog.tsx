@@ -555,13 +555,13 @@ export function EditOrderDialog({
           <div className="space-y-2">
             <Label htmlFor="parent_order">Commessa Padre (opzionale)</Label>
             <Select 
-              value={formData.parent_order_id && formData.parent_order_id !== '' ? formData.parent_order_id : undefined} 
-              onValueChange={(value) => updateFormData('parent_order_id', value)}
+              value={formData.parent_order_id && formData.parent_order_id !== '' ? formData.parent_order_id : "none"} 
+              onValueChange={(value) => updateFormData('parent_order_id', value === "none" ? null : value)}
             >  <SelectTrigger>
                 <SelectValue placeholder="Seleziona una commessa padre" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna (Commessa principale)</SelectItem>
+                <SelectItem value="none">Nessuna (Commessa principale)</SelectItem>
                 {parentOrders.map((parentOrder) => (
                   <SelectItem key={parentOrder.id} value={parentOrder.id}>
                     {parentOrder.order_number} - {parentOrder.title}
