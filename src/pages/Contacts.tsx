@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, Mail, Phone, Building2, Edit, Trash2, Search, X, UserCheck, Crown } from "lucide-react"
 import { AddContactDialog } from "@/components/forms/AddContactDialog"
-// import { EditContactDialog } from "@/components/forms/EditContactDialog" // TODO: Create this component
+import { EditContactDialog } from "@/components/forms/EditContactDialog"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
@@ -28,6 +28,11 @@ interface Contact {
   company_id?: string
   company_name?: string
   created_at: string
+  user_id: string
+  company?: {
+    id: string
+    name: string
+  }
 }
 
 export default function Contacts() {
@@ -49,145 +54,127 @@ export default function Contacts() {
   const [companies, setCompanies] = useState<{id: string, name: string}[]>([])
   
   const { toast } = useToast()
-  const { isAdmin } = useAuth()
+  const { user } = useAuth()
 
   const loadContacts = async () => {
     try {
       setLoading(true)
       
+      if (!user?.id) return
+
       // Query per i contatti con le aziende associate
-      let query = supabase
+      const { data: contactsData, error: contactsError } = await supabase
         .from('crm_contacts')
         .select(`
           *,
-          crm_companies!crm_contacts_company_id_fkey(id, name)
+          company:crm_companies(id, name)
         `)
+        .eq('user_id', user.id)
+        .order('last_name')
 
-      // Filtra per admin se necessario
-      if (!isAdmin) {
-        query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-      }
+      if (contactsError) throw contactsError
 
-      const { data, error } = await query.order('last_name')
-
-      if (error) throw error
-
-      // Mappa i dati con il nome dell'azienda
-      const mappedData = data?.map(contact => ({
+      // Trasforma i dati per includerli nel formato aspettato
+      const transformedContacts = (contactsData || []).map(contact => ({
         ...contact,
-        company_name: contact.crm_companies?.name
-      })) || []
+        company_name: contact.company?.name
+      }))
 
-      setContacts(mappedData)
+      setContacts(transformedContacts)
+
+      // Carica anche le aziende per i filtri
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('crm_companies')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('name')
+
+      if (companiesError) throw companiesError
+      
+      setCompanies(companiesData || [])
+
     } catch (error: any) {
       console.error('Error loading contacts:', error)
       toast({
         title: "Errore",
         description: "Impossibile caricare i contatti",
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
   }
 
-  const loadCompanies = async () => {
-    try {
-      let query = supabase
-        .from('crm_companies')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name')
-
-      if (!isAdmin) {
-        query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setCompanies(data || [])
-    } catch (error) {
-      console.error('Error loading companies:', error)
-    }
-  }
-
   useEffect(() => {
     loadContacts()
-    loadCompanies()
-  }, [isAdmin])
+  }, [user?.id])
 
-  // Filtro e ricerca dei contatti
+  // Filtri e ordinamenti
   const filteredAndSortedContacts = useMemo(() => {
     let filtered = contacts
 
-    // Filtro per ricerca
+    // Filtro di ricerca
     if (searchTerm) {
-      const search = searchTerm.toLowerCase()
+      const searchLower = searchTerm.toLowerCase()
       filtered = filtered.filter(contact => 
-        contact.first_name.toLowerCase().includes(search) ||
-        contact.last_name.toLowerCase().includes(search) ||
-        contact.email?.toLowerCase().includes(search) ||
-        contact.phone?.toLowerCase().includes(search) ||
-        contact.mobile?.toLowerCase().includes(search) ||
-        contact.position?.toLowerCase().includes(search) ||
-        contact.department?.toLowerCase().includes(search) ||
-        contact.company_name?.toLowerCase().includes(search) ||
-        contact.notes?.toLowerCase().includes(search)
+        contact.first_name.toLowerCase().includes(searchLower) ||
+        contact.last_name.toLowerCase().includes(searchLower) ||
+        (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
+        (contact.phone && contact.phone.includes(searchTerm)) ||
+        (contact.mobile && contact.mobile.includes(searchTerm)) ||
+        (contact.position && contact.position.toLowerCase().includes(searchLower)) ||
+        (contact.company_name && contact.company_name.toLowerCase().includes(searchLower))
       )
     }
 
-    // Filtro per status
+    // Filtro status
     if (statusFilter !== "all") {
       filtered = filtered.filter(contact => 
         statusFilter === "active" ? contact.is_active : !contact.is_active
       )
     }
 
-    // Filtro per tipo
+    // Filtro tipo
     if (typeFilter !== "all") {
       filtered = filtered.filter(contact => 
         typeFilter === "primary" ? contact.is_primary : !contact.is_primary
       )
     }
 
-    // Filtro per azienda
+    // Filtro azienda
     if (companyFilter !== "all") {
       filtered = filtered.filter(contact => contact.company_id === companyFilter)
     }
 
     // Ordinamento
     filtered.sort((a, b) => {
-      let aValue, bValue
+      let aValue: any, bValue: any
 
       switch (sortBy) {
         case 'first_name':
-          aValue = a.first_name.toLowerCase()
-          bValue = b.first_name.toLowerCase()
+          aValue = a.first_name
+          bValue = b.first_name
           break
         case 'last_name':
-          aValue = a.last_name.toLowerCase()
-          bValue = b.last_name.toLowerCase()
+          aValue = a.last_name
+          bValue = b.last_name
           break
-        case 'company':
-          aValue = a.company_name?.toLowerCase() || ''
-          bValue = b.company_name?.toLowerCase() || ''
+        case 'email':
+          aValue = a.email || ''
+          bValue = b.email || ''
           break
-        case 'position':
-          aValue = a.position?.toLowerCase() || ''
-          bValue = b.position?.toLowerCase() || ''
-          break
-        case 'department':
-          aValue = a.department?.toLowerCase() || ''
-          bValue = b.department?.toLowerCase() || ''
+        case 'company_name':
+          aValue = a.company_name || ''
+          bValue = b.company_name || ''
           break
         case 'created_at':
           aValue = new Date(a.created_at).getTime()
           bValue = new Date(b.created_at).getTime()
           break
         default:
-          aValue = a.last_name.toLowerCase()
-          bValue = b.last_name.toLowerCase()
+          aValue = a.last_name
+          bValue = b.last_name
       }
 
       if (typeof aValue === 'string') {
@@ -205,13 +192,8 @@ export default function Contacts() {
   }, [contacts, searchTerm, statusFilter, typeFilter, companyFilter, sortBy, sortOrder])
 
   const handleEditContact = (contact: Contact) => {
-    // TODO: Implement when EditContactDialog is created
-    toast({
-      title: "Funzionalità in sviluppo",
-      description: "La modifica dei contatti sarà disponibile presto",
-    })
-    // setSelectedContact(contact)
-    // setShowEditDialog(true)
+    setSelectedContact(contact)
+    setShowEditDialog(true)
   }
 
   const handleDeleteContact = (contact: Contact) => {
@@ -294,6 +276,64 @@ export default function Contacts() {
         </Button>
       </div>
 
+      {/* Statistiche */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Totale</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Attivi</CardTitle>
+            <UserCheck className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Inattivi</CardTitle>
+            <Users className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Principali</CardTitle>
+            <Crown className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{stats.primary}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Con Email</CardTitle>
+            <Mail className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.withEmail}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Con Telefono</CardTitle>
+            <Phone className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{stats.withPhone}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Barra di ricerca e filtri */}
       <Card>
         <CardContent className="p-4">
@@ -335,7 +375,7 @@ export default function Contacts() {
 
             {/* Filtro azienda */}
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Azienda" />
               </SelectTrigger>
               <SelectContent>
@@ -349,94 +389,36 @@ export default function Contacts() {
             </Select>
 
             {/* Ordinamento */}
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[140px]">
+            <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+              const [field, order] = value.split('-')
+              setSortBy(field)
+              setSortOrder(order as 'asc' | 'desc')
+            }}>
+              <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Ordina per" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="last_name">Cognome</SelectItem>
-                <SelectItem value="first_name">Nome</SelectItem>
-                <SelectItem value="company">Azienda</SelectItem>
-                <SelectItem value="position">Ruolo</SelectItem>
-                <SelectItem value="department">Dipartimento</SelectItem>
-                <SelectItem value="created_at">Data Creazione</SelectItem>
+                <SelectItem value="last_name-asc">Cognome A-Z</SelectItem>
+                <SelectItem value="last_name-desc">Cognome Z-A</SelectItem>
+                <SelectItem value="first_name-asc">Nome A-Z</SelectItem>
+                <SelectItem value="first_name-desc">Nome Z-A</SelectItem>
+                <SelectItem value="company_name-asc">Azienda A-Z</SelectItem>
+                <SelectItem value="company_name-desc">Azienda Z-A</SelectItem>
+                <SelectItem value="created_at-desc">Più recenti</SelectItem>
+                <SelectItem value="created_at-asc">Più vecchi</SelectItem>
               </SelectContent>
             </Select>
 
-            {/* Direzione ordinamento */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            >
-              {sortOrder === 'asc' ? '↑' : '↓'}
-            </Button>
-
-            {/* Pulisci filtri */}
+            {/* Pulsante per pulire filtri */}
             {(searchTerm || statusFilter !== "all" || typeFilter !== "all" || companyFilter !== "all" || sortBy !== "last_name" || sortOrder !== "asc") && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                <X className="w-4 h-4 mr-2" />
+              <Button variant="outline" onClick={clearFilters}>
+                <X className="mr-2 h-4 w-4" />
                 Pulisci
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Cards statistiche */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contatti Totali</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.active} attivi, {stats.inactive} inattivi
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contatti Principali</CardTitle>
-            <Crown className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.primary}</div>
-            <p className="text-xs text-muted-foreground">
-              {Math.round((stats.primary / stats.total) * 100) || 0}% del totale
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Con Email</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.withEmail}</div>
-            <p className="text-xs text-muted-foreground">
-              {Math.round((stats.withEmail / stats.total) * 100) || 0}% del totale
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Con Telefono</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.withPhone}</div>
-            <p className="text-xs text-muted-foreground">
-              {Math.round((stats.withPhone / stats.total) * 100) || 0}% del totale
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Lista contatti */}
       {filteredAndSortedContacts.length === 0 ? (
@@ -463,148 +445,3 @@ export default function Contacts() {
           )}
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAndSortedContacts.map((contact) => (
-            <Card key={contact.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center space-x-3">
-                  <Avatar>
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {getInitials(contact.first_name, contact.last_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">
-                      {contact.first_name} {contact.last_name}
-                    </CardTitle>
-                    {contact.position && (
-                      <CardDescription className="truncate">{contact.position}</CardDescription>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleEditContact(contact)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Eliminare il contatto?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Sei sicuro di voler eliminare il contatto "{contact.first_name} {contact.last_name}"? 
-                            Questa azione non può essere annullata.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annulla</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteContact(contact)}>
-                            Elimina
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-                
-                {/* Badges */}
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant={contact.is_active ? "default" : "secondary"}>
-                    {contact.is_active ? "Attivo" : "Inattivo"}
-                  </Badge>
-                  {contact.is_primary && (
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-                      <Crown className="w-3 h-3 mr-1" />
-                      Principale
-                    </Badge>
-                  )}
-                  {contact.department && (
-                    <Badge variant="outline">
-                      {contact.department}
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-2">
-                {contact.company_name && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Building2 className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{contact.company_name}</span>
-                  </div>
-                )}
-                {contact.email && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Mail className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{contact.email}</span>
-                  </div>
-                )}
-                {contact.phone && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Phone className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span>{contact.phone}</span>
-                  </div>
-                )}
-                {contact.mobile && contact.mobile !== contact.phone && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Phone className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span>{contact.mobile} (Mobile)</span>
-                  </div>
-                )}
-                {contact.notes && (
-                  <div className="text-sm text-muted-foreground italic border-t pt-2">
-                    {contact.notes.length > 100 
-                      ? `${contact.notes.substring(0, 100)}...`
-                      : contact.notes
-                    }
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-      
-      {/* Dialogs */}
-      <AddContactDialog 
-        open={showAddDialog} 
-        onOpenChange={setShowAddDialog}
-        onContactAdded={loadContacts}
-      />
-
-      {/* TODO: Add EditContactDialog when component is created
-      <EditContactDialog 
-        open={showEditDialog} 
-        onOpenChange={setShowEditDialog}
-        contact={selectedContact}
-        onContactUpdated={loadContacts}
-      />
-      */}
-
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sei sicuro di voler eliminare il contatto "{contactToDelete?.first_name} {contactToDelete?.last_name}"? 
-              Questa azione non può essere annullata.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteContact}>
-              Elimina
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  )
-}
