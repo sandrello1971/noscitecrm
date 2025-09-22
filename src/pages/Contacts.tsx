@@ -28,7 +28,6 @@ interface Contact {
   company_id?: string
   company_name?: string
   created_at: string
-  updated_at?: string
   user_id: string
   company?: {
     id: string
@@ -55,7 +54,7 @@ export default function Contacts() {
   const [companies, setCompanies] = useState<{id: string, name: string}[]>([])
   
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
 
   const loadContacts = async () => {
     try {
@@ -64,14 +63,19 @@ export default function Contacts() {
       if (!user?.id) return
 
       // Query per i contatti con le aziende associate
-      const { data: contactsData, error: contactsError } = await supabase
+      let query = supabase
         .from('crm_contacts')
         .select(`
           *,
           company:crm_companies(id, name)
         `)
-        .eq('user_id', user.id)
-        .order('last_name')
+
+      // Filtra per admin se necessario - GLI ADMIN VEDONO TUTTO
+      if (!isAdmin) {
+        query = query.eq('user_id', user.id)
+      }
+
+      const { data: contactsData, error: contactsError } = await query.order('last_name')
 
       if (contactsError) throw contactsError
 
@@ -84,12 +88,18 @@ export default function Contacts() {
       setContacts(transformedContacts)
 
       // Carica anche le aziende per i filtri
-      const { data: companiesData, error: companiesError } = await supabase
+      let companiesQuery = supabase
         .from('crm_companies')
         .select('id, name')
-        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('name')
+
+      // Filtra per admin se necessario - GLI ADMIN VEDONO TUTTO
+      if (!isAdmin) {
+        companiesQuery = companiesQuery.eq('user_id', user.id)
+      }
+
+      const { data: companiesData, error: companiesError } = await companiesQuery
 
       if (companiesError) throw companiesError
       
@@ -109,7 +119,7 @@ export default function Contacts() {
 
   useEffect(() => {
     loadContacts()
-  }, [user?.id])
+  }, [user?.id, isAdmin])
 
   // Filtri e ordinamenti
   const filteredAndSortedContacts = useMemo(() => {
@@ -466,7 +476,7 @@ export default function Contacts() {
                   </div>
                   <div className="flex items-center gap-1">
                     {contact.is_primary && (
-                      <Crown className="h-4 w-4 text-yellow-500" />
+                      <Crown className="h-4 w-4 text-yellow-500" title="Contatto principale" />
                     )}
                     {!contact.is_active && (
                       <Badge variant="secondary" className="text-xs">Inattivo</Badge>
