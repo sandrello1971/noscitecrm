@@ -75,9 +75,9 @@ export function EditOrderDialog({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    company_id: '',
-    parent_order_id: '',
-    assigned_user_id: '',
+    company_id: undefined as string | undefined,
+    parent_order_id: undefined as string | undefined,
+    assigned_user_id: undefined as string | undefined,
     status: 'draft',
     priority: 'medium',
     estimated_hours: '',
@@ -101,9 +101,9 @@ export function EditOrderDialog({
       setFormData({
         title: order.title || '',
         description: order.description || '',
-        company_id: order.company_id || '',
-        parent_order_id: order.parent_order_id || '',
-        assigned_user_id: order.assigned_user_id || '',
+        company_id: order.company_id || undefined,
+        parent_order_id: order.parent_order_id || undefined,
+        assigned_user_id: order.assigned_user_id || undefined,
         status: order.status || 'draft',
         priority: order.priority || 'medium',
         estimated_hours: order.estimated_hours?.toString() || '',
@@ -418,8 +418,10 @@ export function EditOrderDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => updateFormData('status', value)}>
-                <SelectTrigger>
+              <Select 
+                value={formData.status || undefined} 
+                onValueChange={(value) => updateFormData('status', value)}
+              >  <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -434,8 +436,10 @@ export function EditOrderDialog({
 
             <div className="space-y-2">
               <Label htmlFor="priority">Priorità</Label>
-              <Select value={formData.priority} onValueChange={(value) => updateFormData('priority', value)}>
-                <SelectTrigger>
+              <Select 
+                value={formData.priority || undefined} 
+                onValueChange={(value) => updateFormData('priority', value)}
+              >  <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
