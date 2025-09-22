@@ -75,9 +75,9 @@ export function EditOrderDialog({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    company_id: undefined as string | undefined,
-    parent_order_id: undefined as string | undefined,
-    assigned_user_id: undefined as string | undefined,
+    company_id: '',
+    parent_order_id: '',
+    assigned_user_id: '',
     status: 'draft',
     priority: 'medium',
     estimated_hours: '',
@@ -101,9 +101,9 @@ export function EditOrderDialog({
       setFormData({
         title: order.title || '',
         description: order.description || '',
-        company_id: order.company_id || undefined,
-        parent_order_id: order.parent_order_id || undefined,
-        assigned_user_id: order.assigned_user_id || undefined,
+        company_id: order.company_id || '',
+        parent_order_id: order.parent_order_id || '',
+        assigned_user_id: order.assigned_user_id || '',
         status: order.status || 'draft',
         priority: order.priority || 'medium',
         estimated_hours: order.estimated_hours?.toString() || '',
@@ -387,7 +387,7 @@ export function EditOrderDialog({
             <div className="space-y-2">
               <Label htmlFor="company">Cliente *</Label>
               <Select 
-                value={formData.company_id || undefined} 
+                value={formData.company_id || ""} 
                 onValueChange={(value) => updateFormData('company_id', value)}
               >  <SelectTrigger>
                   <SelectValue placeholder="Seleziona un cliente" />
@@ -551,7 +551,7 @@ export function EditOrderDialog({
           <div className="space-y-2">
             <Label htmlFor="parent_order">Commessa Padre (opzionale)</Label>
             <Select 
-              value={formData.parent_order_id || undefined} 
+              value={formData.parent_order_id && formData.parent_order_id !== '' ? formData.parent_order_id : undefined} 
               onValueChange={(value) => updateFormData('parent_order_id', value)}
             >  <SelectTrigger>
                 <SelectValue placeholder="Seleziona una commessa padre" />
@@ -583,7 +583,7 @@ export function EditOrderDialog({
                   <div className="col-span-5">
                     <Label className="text-sm">Servizio</Label>
                     <Select 
-                      value={service.service_id || undefined} 
+                      value={service.service_id && service.service_id !== '' ? service.service_id : undefined} 
                       onValueChange={(value) => updateService(service.temp_id, "service_id", value)}
                     >
                       <SelectTrigger>
