@@ -69,7 +69,7 @@ export default function Opportunities() {
         .from('opportunity_services')
         .select(`
           *,
-          crm_services!opportunity_services_service_id_fkey(name)
+          crm_services(id, name, code)
         `)
 
       if (servicesError) throw servicesError
