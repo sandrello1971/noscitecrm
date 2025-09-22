@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, Mail, Phone, Building2, Edit, Trash2, Search, X, UserCheck, Crown } from "lucide-react"
 import { AddContactDialog } from "@/components/forms/AddContactDialog"
@@ -445,3 +445,164 @@ export default function Contacts() {
           )}
         </Card>
       ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredAndSortedContacts.map((contact) => (
+            <Card key={contact.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <Avatar>
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {getInitials(contact.first_name, contact.last_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg truncate">
+                      {contact.first_name} {contact.last_name}
+                    </CardTitle>
+                    {contact.position && (
+                      <CardDescription className="truncate">{contact.position}</CardDescription>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {contact.is_primary && (
+                      <Crown className="h-4 w-4 text-yellow-500" title="Contatto principale" />
+                    )}
+                    {!contact.is_active && (
+                      <Badge variant="secondary" className="text-xs">Inattivo</Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-3">
+                {contact.company_name && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Building2 className="mr-2 h-4 w-4" />
+                    <span className="truncate">{contact.company_name}</span>
+                  </div>
+                )}
+                
+                {contact.email && (
+                  <div className="flex items-center text-sm">
+                    <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <a 
+                      href={`mailto:${contact.email}`}
+                      className="text-blue-600 hover:underline truncate"
+                    >
+                      {contact.email}
+                    </a>
+                  </div>
+                )}
+                
+                {(contact.phone || contact.mobile) && (
+                  <div className="space-y-1">
+                    {contact.phone && (
+                      <div className="flex items-center text-sm">
+                        <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <a 
+                          href={`tel:${contact.phone}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {contact.phone}
+                        </a>
+                      </div>
+                    )}
+                    {contact.mobile && (
+                      <div className="flex items-center text-sm">
+                        <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <a 
+                          href={`tel:${contact.mobile}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {contact.mobile} <span className="text-muted-foreground">(Cell.)</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {contact.department && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Reparto:</strong> {contact.department}
+                  </div>
+                )}
+
+                {contact.notes && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Note:</strong> {
+                      contact.notes.length > 100 
+                        ? `${contact.notes.substring(0, 100)}...`
+                        : contact.notes
+                    }
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-2">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant={contact.is_active ? "default" : "secondary"}>
+                      {contact.is_active ? "Attivo" : "Inattivo"}
+                    </Badge>
+                    {contact.is_primary && (
+                      <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                        Principale
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex space-x-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleEditContact(contact)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleDeleteContact(contact)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+      
+      {/* Dialogs */}
+      <AddContactDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog}
+        onContactAdded={loadContacts}
+      />
+
+      <EditContactDialog 
+        open={showEditDialog} 
+        onOpenChange={setShowEditDialog}
+        contact={selectedContact}
+        onContactUpdated={loadContacts}
+      />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare il contatto "{contactToDelete?.first_name} {contactToDelete?.last_name}"? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteContact}>
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
