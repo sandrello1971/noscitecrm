@@ -386,8 +386,10 @@ export function EditOrderDialog({
 
             <div className="space-y-2">
               <Label htmlFor="company">Cliente *</Label>
-              <Select value={formData.company_id} onValueChange={(value) => updateFormData('company_id', value)}>
-                <SelectTrigger>
+              <Select 
+                value={formData.company_id || undefined} 
+                onValueChange={(value) => updateFormData('company_id', value)}
+              >  <SelectTrigger>
                   <SelectValue placeholder="Seleziona un cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -544,8 +546,10 @@ export function EditOrderDialog({
           {/* Commessa Padre */}
           <div className="space-y-2">
             <Label htmlFor="parent_order">Commessa Padre (opzionale)</Label>
-            <Select value={formData.parent_order_id} onValueChange={(value) => updateFormData('parent_order_id', value)}>
-              <SelectTrigger>
+            <Select 
+              value={formData.parent_order_id || undefined} 
+              onValueChange={(value) => updateFormData('parent_order_id', value)}
+            >  <SelectTrigger>
                 <SelectValue placeholder="Seleziona una commessa padre" />
               </SelectTrigger>
               <SelectContent>
@@ -575,7 +579,7 @@ export function EditOrderDialog({
                   <div className="col-span-5">
                     <Label className="text-sm">Servizio</Label>
                     <Select 
-                      value={service.service_id} 
+                      value={service.service_id || undefined} 
                       onValueChange={(value) => updateService(service.temp_id, "service_id", value)}
                     >
                       <SelectTrigger>
