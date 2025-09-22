@@ -80,8 +80,7 @@ export default function Orders() {
         .from('crm_orders')
         .select(`
           *,
-          crm_companies!crm_orders_company_id_fkey(id, name),
-          parent_order:crm_orders!crm_orders_parent_order_id_fkey(title)
+          crm_companies!crm_orders_company_id_fkey(id, name)
         `)
 
       // Filtra per admin se necessario
@@ -92,6 +91,20 @@ export default function Orders() {
       const { data: ordersData, error: ordersError } = await query.order('created_at', { ascending: false })
 
       if (ordersError) throw ordersError
+
+      // Carica le commesse padre separatamente se necessario
+      const parentOrderIds = ordersData?.filter(o => o.parent_order_id).map(o => o.parent_order_id) || []
+      let parentOrdersData = []
+      
+      if (parentOrderIds.length > 0) {
+        const { data: parentData, error: parentError } = await supabase
+          .from('crm_orders')
+          .select('id, title')
+          .in('id', parentOrderIds)
+        
+        if (parentError) throw parentError
+        parentOrdersData = parentData || []
+      }
 
       // Carica i servizi per ogni commessa
       const { data: servicesData, error: servicesError } = await supabase
@@ -135,16 +148,22 @@ export default function Orders() {
         subOrdersMap.set(subOrder.parent_order_id, count + 1)
       })
 
+      // Crea una mappa delle commesse padre
+      const parentOrdersMap = new Map()
+      parentOrdersData.forEach(parent => {
+        parentOrdersMap.set(parent.id, parent.title)
+      })
+
       // Combina tutti i dati
       const mappedData = ordersData?.map(order => ({
         ...order,
         company_name: order.crm_companies?.name,
-        parent_order_title: order.parent_order?.[0]?.title,
+        parent_order_title: order.parent_order_id ? parentOrdersMap.get(order.parent_order_id) : undefined,
         services: servicesMap.get(order.id) || [],
         sub_orders_count: subOrdersMap.get(order.id) || 0
       })) || []
 
-      setOrders(mappedData as Order[])
+      setOrders(mappedData)
     } catch (error: any) {
       console.error('Error loading orders:', error)
       toast({
@@ -364,10 +383,10 @@ export default function Orders() {
       'cancelled': { variant: 'destructive' as const, icon: XCircle, label: 'Annullata' }
     }
 
-    const { variant, icon: Icon, label } = config[status as keyof typeof config] || config.draft
+    const { variant, icon: Icon, label, className } = config[status as keyof typeof config] || config.draft
 
     return (
-      <Badge variant={variant}>
+      <Badge variant={variant} className={className}>
         <Icon className="w-3 h-3 mr-1" />
         {label}
       </Badge>
