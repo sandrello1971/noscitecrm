@@ -119,6 +119,9 @@ export function EditOrderDialog({
       loadServices()
       loadParentOrders()
       loadOrderServices()
+    } else if (open) {
+      // Se non c'è un order, inizializza con servizi vuoti
+      setOrderServices([])
     }
   }, [open, order])
 
@@ -419,7 +422,7 @@ export function EditOrderDialog({
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select 
-                value={formData.status || undefined} 
+                value={formData.status} 
                 onValueChange={(value) => updateFormData('status', value)}
               >  <SelectTrigger>
                   <SelectValue />
@@ -437,7 +440,7 @@ export function EditOrderDialog({
             <div className="space-y-2">
               <Label htmlFor="priority">Priorità</Label>
               <Select 
-                value={formData.priority || undefined} 
+                value={formData.priority} 
                 onValueChange={(value) => updateFormData('priority', value)}
               >  <SelectTrigger>
                   <SelectValue />
