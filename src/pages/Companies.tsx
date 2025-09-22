@@ -51,62 +51,64 @@ export default function Companies() {
   const { toast } = useToast()
   const { isAdmin } = useAuth()
 
-  // Alternativa più affidabile - Sostituisci la funzione refreshCompanies
+  const refreshCompanies = async () => {
+    try {
+      setLoading(true)
+      
+      // Prima ottieni le aziende
+      let companiesQuery = supabase
+        .from('crm_companies')
+        .select('*')
 
-const refreshCompanies = async () => {
-  try {
-    setLoading(true)
-    
-    // Prima ottieni le aziende
-    let companiesQuery = supabase
-      .from('crm_companies')
-      .select('*')
+      // Filtra per admin se necessario
+      if (!isAdmin) {
+        companiesQuery = companiesQuery.eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      }
 
-    // Filtra per admin se necessario
-    if (!isAdmin) {
-      companiesQuery = companiesQuery.eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-    }
+      const { data: companiesData, error: companiesError } = await companiesQuery.order('name')
 
-    const { data: companiesData, error: companiesError } = await companiesQuery.order('name')
+      if (companiesError) throw companiesError
 
-    if (companiesError) throw companiesError
+      // Poi ottieni i conteggi per ogni azienda
+      const mappedData = await Promise.all(
+        (companiesData || []).map(async (company) => {
+          // Conta i contatti per questa specifica azienda
+          const { count: contactsCount } = await supabase
+            .from('crm_contacts')
+            .select('*', { count: 'exact', head: true })
+            .eq('company_id', company.id)
 
-    // Poi ottieni i conteggi per ogni azienda
-    const mappedData = await Promise.all(
-      (companiesData || []).map(async (company) => {
-        // Conta i contatti per questa specifica azienda
-        const { count: contactsCount } = await supabase
-          .from('crm_contacts')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', company.id)
+          // Conta le opportunità per questa specifica azienda  
+          const { count: opportunitiesCount } = await supabase
+            .from('opportunities')
+            .select('*', { count: 'exact', head: true })
+            .eq('company_id', company.id)
 
-        // Conta le opportunità per questa specifica azienda  
-        const { count: opportunitiesCount } = await supabase
-          .from('opportunities')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', company.id)
+          return {
+            ...company,
+            contacts_count: contactsCount || 0,
+            opportunities_count: opportunitiesCount || 0
+          }
+        })
+      )
 
-        return {
-          ...company,
-          contacts_count: contactsCount || 0,
-          opportunities_count: opportunitiesCount || 0
-        }
+      console.log('Loaded companies with correct counts:', mappedData)
+      setCompanies(mappedData)
+    } catch (error: any) {
+      console.error('Error loading companies:', error)
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare le aziende",
+        variant: "destructive"
       })
-    )
-
-    console.log('Loaded companies with correct counts:', mappedData)
-    setCompanies(mappedData)
-  } catch (error: any) {
-    console.error('Error loading companies:', error)
-    toast({
-      title: "Errore", 
-      description: "Impossibile caricare le aziende",
-      variant: "destructive"
-    })
-  } finally {
-    setLoading(false)
+    } finally {
+      setLoading(false)
+    }
   }
-}
+
+  useEffect(() => {
+    refreshCompanies()
+  }, [isAdmin])
 
   // Filtro e ricerca delle aziende
   const filteredAndSortedCompanies = useMemo(() => {
@@ -246,18 +248,14 @@ const refreshCompanies = async () => {
     }
   }, [filteredAndSortedCompanies])
 
-  if (loading) {
-    return <div className="p-6">Caricamento...</div>
-  }
-
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Aziende</h1>
           <p className="text-muted-foreground">
-            Gestisci l'anagrafica delle aziende clienti - {filteredAndSortedCompanies.length} di {companies.length} aziende
+            Gestisci l'anagrafica delle aziende clienti - {stats.total} di {companies.length} aziende
           </p>
         </div>
         <Button onClick={() => setShowAddDialog(true)}>
@@ -266,81 +264,8 @@ const refreshCompanies = async () => {
         </Button>
       </div>
 
-      {/* Barra di ricerca e filtri */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Campo ricerca */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca per nome, P.IVA, email, telefono, città..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Filtro status */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte</SelectItem>
-                <SelectItem value="active">Attive</SelectItem>
-                <SelectItem value="inactive">Inattive</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Filtro tipo */}
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte</SelectItem>
-                <SelectItem value="partner">Partner</SelectItem>
-                <SelectItem value="client">Clienti</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Ordinamento */}
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Ordina per" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Nome</SelectItem>
-                <SelectItem value="city">Città</SelectItem>
-                <SelectItem value="created_at">Data Creazione</SelectItem>
-                <SelectItem value="contacts_count">N. Contatti</SelectItem>
-                <SelectItem value="opportunities_count">N. Opportunità</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Direzione ordinamento */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            >
-              {sortOrder === 'asc' ? '↑' : '↓'}
-            </Button>
-
-            {/* Pulisci filtri */}
-            {(searchTerm || statusFilter !== "all" || typeFilter !== "all" || sortBy !== "name" || sortOrder !== "asc") && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                <X className="w-4 h-4 mr-2" />
-                Pulisci
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Cards statistiche */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Statistiche */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aziende Totali</CardTitle>
@@ -348,25 +273,21 @@ const refreshCompanies = async () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.active} attive, {stats.inactive} inattive
-            </p>
+            <p className="text-xs text-muted-foreground">{stats.active} attive, {stats.inactive} inattive</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Partner</CardTitle>
-            <Briefcase className="h-4 w-4 text-blue-600" />
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.partners}</div>
-            <p className="text-xs text-muted-foreground">
-              {Math.round((stats.partners / stats.total) * 100) || 0}% del totale
-            </p>
+            <div className="text-2xl font-bold">{stats.partners}</div>
+            <p className="text-xs text-muted-foreground">{Math.round((stats.partners / (stats.total || 1)) * 100)}% del totale</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Contatti Totali</CardTitle>
@@ -374,73 +295,184 @@ const refreshCompanies = async () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalContacts}</div>
-            <p className="text-xs text-muted-foreground">
-              Media {Math.round((stats.totalContacts / stats.total) * 10) / 10 || 0} per azienda
-            </p>
+            <p className="text-xs text-muted-foreground">Media {(stats.totalContacts / (stats.total || 1)).toFixed(1)} per azienda</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Opportunità Totali</CardTitle>
-            <Building2 className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">Opportunità</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.totalOpportunities}</div>
-            <p className="text-xs text-muted-foreground">
-              Media {Math.round((stats.totalOpportunities / stats.total) * 10) / 10 || 0} per azienda
-            </p>
+            <div className="text-2xl font-bold">{stats.totalOpportunities}</div>
+            <p className="text-xs text-muted-foreground">Totali nel sistema</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Lista aziende */}
-      {filteredAndSortedCompanies.length === 0 ? (
+      {/* Filtri e Ricerca */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtri e Ricerca</CardTitle>
+          <CardDescription>Filtra e ordina l'elenco delle aziende</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ricerca</label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cerca per nome, P.IVA, email, città..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte</SelectItem>
+                  <SelectItem value="active">Attive</SelectItem>
+                  <SelectItem value="inactive">Inattive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo</label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte</SelectItem>
+                  <SelectItem value="partner">Partner</SelectItem>
+                  <SelectItem value="client">Solo Clienti</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ordina per</label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Nome</SelectItem>
+                  <SelectItem value="city">Città</SelectItem>
+                  <SelectItem value="created_at">Data Creazione</SelectItem>
+                  <SelectItem value="contacts_count">N. Contatti</SelectItem>
+                  <SelectItem value="opportunities_count">N. Opportunità</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ordine</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={sortOrder === 'asc' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortOrder('asc')}
+                >
+                  Crescente
+                </Button>
+                <Button
+                  variant={sortOrder === 'desc' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortOrder('desc')}
+                >
+                  Decrescente
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {(searchTerm || statusFilter !== "all" || typeFilter !== "all" || sortBy !== "name" || sortOrder !== "asc") && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                {stats.total} risultati con i filtri attuali
+              </p>
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="mr-2 h-4 w-4" />
+                Pulisci Filtri
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Elenco Aziende */}
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredAndSortedCompanies.length === 0 ? (
         <Card>
-          <CardHeader className="text-center">
-            <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
-            <CardTitle>
-              {companies.length === 0 ? "Nessuna azienda trovata" : "Nessun risultato"}
-            </CardTitle>
-            <CardDescription>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nessuna azienda trovata</h3>
+            <p className="text-muted-foreground text-center mb-4">
               {companies.length === 0 
-                ? "Inizia aggiungendo la tua prima azienda cliente"
-                : "Nessuna azienda corrisponde ai criteri di ricerca"
+                ? "Non ci sono ancora aziende nel sistema. Inizia aggiungendo la prima azienda."
+                : "Nessuna azienda corrisponde ai filtri selezionati. Prova a modificare i criteri di ricerca."
               }
-            </CardDescription>
-          </CardHeader>
-          {companies.length === 0 && (
-            <CardContent className="text-center">
+            </p>
+            {companies.length === 0 && (
               <Button onClick={() => setShowAddDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Aggiungi Prima Azienda
               </Button>
-            </CardContent>
-          )}
+            )}
+          </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredAndSortedCompanies.map((company) => (
             <Card key={company.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">{company.name}</CardTitle>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 flex-1">
+                    <CardTitle className="text-lg leading-tight">{company.name}</CardTitle>
                     {company.vat_number && (
-                      <CardDescription>P.IVA: {company.vat_number}</CardDescription>
+                      <CardDescription className="text-xs">
+                        P.IVA: {company.vat_number}
+                      </CardDescription>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 ml-2">
+                  <div className="flex gap-1">
                     <Button
-                      variant="outline"
-                      size="icon"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEditCompany(company)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant="outline"
-                      size="icon"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleDeleteCompany(company)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -448,7 +480,6 @@ const refreshCompanies = async () => {
                   </div>
                 </div>
                 
-                {/* Badges */}
                 <div className="flex flex-wrap gap-1">
                   <Badge variant={company.is_active ? "default" : "secondary"}>
                     {company.is_active ? "Attiva" : "Inattiva"}
