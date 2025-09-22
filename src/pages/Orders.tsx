@@ -75,12 +75,12 @@ export default function Orders() {
     try {
       setLoading(true)
       
-      // Query per le commesse con aziende e commesse padre
+      // Query semplificata per le commesse con solo le aziende
       let query = supabase
         .from('crm_orders')
         .select(`
           *,
-          crm_companies!crm_orders_company_id_fkey(id, name)
+          crm_companies(id, name)
         `)
 
       // Filtra per admin se necessario
@@ -90,85 +90,27 @@ export default function Orders() {
 
       const { data: ordersData, error: ordersError } = await query.order('created_at', { ascending: false })
 
-      if (ordersError) throw ordersError
-
-      // Carica le commesse padre separatamente se necessario
-      const parentOrderIds = ordersData?.filter(o => o.parent_order_id).map(o => o.parent_order_id) || []
-      let parentOrdersData = []
-      
-      if (parentOrderIds.length > 0) {
-        const { data: parentData, error: parentError } = await supabase
-          .from('crm_orders')
-          .select('id, title')
-          .in('id', parentOrderIds)
-        
-        if (parentError) throw parentError
-        parentOrdersData = parentData || []
+      if (ordersError) {
+        console.error('Orders error:', ordersError)
+        throw ordersError
       }
 
-      // Carica i servizi per ogni commessa
-      const { data: servicesData, error: servicesError } = await supabase
-        .from('crm_order_services')
-        .select(`
-          *,
-          crm_services!crm_order_services_service_id_fkey(name)
-        `)
-
-      if (servicesError) throw servicesError
-
-      // Carica il conteggio delle sotto-commesse
-      const { data: subOrdersData, error: subOrdersError } = await supabase
-        .from('crm_orders')
-        .select('parent_order_id')
-        .not('parent_order_id', 'is', null)
-
-      if (subOrdersError) throw subOrdersError
-
-      // Raggruppa i servizi per commessa
-      const servicesMap = new Map()
-      servicesData?.forEach(service => {
-        if (!servicesMap.has(service.order_id)) {
-          servicesMap.set(service.order_id, [])
-        }
-        servicesMap.get(service.order_id).push({
-          id: service.id,
-          service_id: service.service_id,
-          quantity: service.quantity,
-          unit_price: service.unit_price,
-          total_price: service.total_price,
-          notes: service.notes,
-          service_name: service.crm_services?.name
-        })
-      })
-
-      // Conta le sotto-commesse
-      const subOrdersMap = new Map()
-      subOrdersData?.forEach(subOrder => {
-        const count = subOrdersMap.get(subOrder.parent_order_id) || 0
-        subOrdersMap.set(subOrder.parent_order_id, count + 1)
-      })
-
-      // Crea una mappa delle commesse padre
-      const parentOrdersMap = new Map()
-      parentOrdersData.forEach(parent => {
-        parentOrdersMap.set(parent.id, parent.title)
-      })
-
-      // Combina tutti i dati
+      // Per ora iniziamo senza i servizi e le sotto-commesse per testare
       const mappedData = ordersData?.map(order => ({
         ...order,
         company_name: order.crm_companies?.name,
-        parent_order_title: order.parent_order_id ? parentOrdersMap.get(order.parent_order_id) : undefined,
-        services: servicesMap.get(order.id) || [],
-        sub_orders_count: subOrdersMap.get(order.id) || 0
+        parent_order_title: undefined, // TODO: Aggiungere dopo
+        services: [], // TODO: Aggiungere dopo
+        sub_orders_count: 0 // TODO: Aggiungere dopo
       })) || []
 
+      console.log('Loaded orders:', mappedData)
       setOrders(mappedData)
     } catch (error: any) {
       console.error('Error loading orders:', error)
       toast({
         title: "Errore",
-        description: "Impossibile caricare le commesse",
+        description: `Impossibile caricare le commesse: ${error.message}`,
         variant: "destructive"
       })
     } finally {
@@ -190,10 +132,16 @@ export default function Orders() {
 
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error('Companies error:', error)
+        throw error
+      }
+      
+      console.log('Loaded companies:', data)
       setCompanies(data || [])
     } catch (error) {
       console.error('Error loading companies:', error)
+      // Non blocchiamo il caricamento delle commesse per un errore delle aziende
     }
   }
 
