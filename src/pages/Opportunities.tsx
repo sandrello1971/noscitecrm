@@ -138,7 +138,7 @@ export default function Opportunities() {
     try {
       const { error } = await supabase
         .from('opportunities')
-        .update({ status: newStatus })
+        .update({ status: newStatus as 'in_attesa' | 'acquisita' | 'persa' })
         .eq('id', opportunityId)
 
       if (error) throw error

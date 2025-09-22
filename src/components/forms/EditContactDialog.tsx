@@ -24,7 +24,7 @@ interface Contact {
   is_primary: boolean
   is_active: boolean
   created_at: string
-  updated_at: string
+  updated_at?: string
   user_id: string
   company?: {
     id: string
@@ -228,12 +228,12 @@ export function EditContactDialog({ open, onOpenChange, contact, onContactUpdate
 
           <div className="space-y-2">
             <Label htmlFor="company_id">Azienda</Label>
-            <Select value={formData.company_id} onValueChange={(value) => updateFormData("company_id", value)}>
+            <Select value={formData.company_id || "none"} onValueChange={(value) => updateFormData("company_id", value === "none" ? "" : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un'azienda" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna azienda</SelectItem>
+                <SelectItem value="none">Nessuna azienda</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}

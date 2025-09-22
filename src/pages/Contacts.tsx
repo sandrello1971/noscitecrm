@@ -28,6 +28,7 @@ interface Contact {
   company_id?: string
   company_name?: string
   created_at: string
+  updated_at?: string
   user_id: string
   company?: {
     id: string
@@ -465,7 +466,7 @@ export default function Contacts() {
                   </div>
                   <div className="flex items-center gap-1">
                     {contact.is_primary && (
-                      <Crown className="h-4 w-4 text-yellow-500" title="Contatto principale" />
+                      <Crown className="h-4 w-4 text-yellow-500" />
                     )}
                     {!contact.is_active && (
                       <Badge variant="secondary" className="text-xs">Inattivo</Badge>
