@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface AddContactDialogProps {
   open: boolean
@@ -14,9 +16,16 @@ interface AddContactDialogProps {
   onContactAdded?: () => void
 }
 
+interface Company {
+  id: string
+  name: string
+}
+
 export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddContactDialogProps) {
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [companies, setCompanies] = useState<Company[]>([])
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -31,13 +40,72 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
     is_active: true
   })
 
+  useEffect(() => {
+    if (open) {
+      loadCompanies()
+    }
+  }, [open])
+
+  const loadCompanies = async () => {
+    try {
+      let query = supabase
+        .from('crm_companies')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name')
+
+      if (!isAdmin) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          query = query.eq('user_id', user.id)
+        }
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error('Error loading companies:', error)
+        throw error
+      }
+
+      setCompanies(data || [])
+    } catch (error) {
+      console.error('Error loading companies:', error)
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare le aziende",
+        variant: "destructive"
+      })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      // TODO: Implementare chiamata a Supabase
-      console.log("Dati contatto:", formData)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Utente non autenticato")
+
+      const { data, error } = await supabase
+        .from('crm_contacts')
+        .insert({
+          user_id: user.id,
+          first_name: formData.first_name.trim(),
+          last_name: formData.last_name.trim(),
+          email: formData.email.trim() || null,
+          phone: formData.phone.trim() || null,
+          mobile: formData.mobile.trim() || null,
+          position: formData.position.trim() || null,
+          department: formData.department.trim() || null,
+          company_id: formData.company_id || null,
+          notes: formData.notes.trim() || null,
+          is_primary: formData.is_primary,
+          is_active: formData.is_active
+        })
+        .select()
+
+      if (error) throw error
       
       toast({
         title: "Contatto creato",
@@ -45,29 +113,34 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
       })
       
       onContactAdded?.()
+      resetForm()
       onOpenChange(false)
-      setFormData({
-        first_name: "",
-        last_name: "",
-        email: "",
-        phone: "",
-        mobile: "",
-        position: "",
-        department: "",
-        company_id: "",
-        notes: "",
-        is_primary: false,
-        is_active: true
-      })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating contact:', error)
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante la creazione del contatto.",
+        description: error.message || "Si è verificato un errore durante la creazione del contatto.",
         variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+      mobile: "",
+      position: "",
+      department: "",
+      company_id: "",
+      notes: "",
+      is_primary: false,
+      is_active: true
+    })
   }
 
   const updateFormData = (field: string, value: any) => {
@@ -112,12 +185,15 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
             <Label htmlFor="company_id">Azienda</Label>
             <Select value={formData.company_id} onValueChange={(value) => updateFormData("company_id", value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Seleziona un'azienda" />
+                <SelectValue placeholder="Seleziona un'azienda (opzionale)" />
               </SelectTrigger>
               <SelectContent>
-                {/* TODO: Caricare le aziende da Supabase */}
-                <SelectItem value="1">Azienda Esempio 1</SelectItem>
-                <SelectItem value="2">Azienda Esempio 2</SelectItem>
+                <SelectItem value="">Nessuna azienda</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -160,7 +236,7 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => updateFormData("phone", e.target.value)}
-                placeholder="+39 02 1234 5678"
+                placeholder="+39 123 456 7890"
               />
             </div>
           </div>
@@ -171,7 +247,7 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
               id="mobile"
               value={formData.mobile}
               onChange={(e) => updateFormData("mobile", e.target.value)}
-              placeholder="+39 123 456 7890"
+              placeholder="+39 333 123 4567"
             />
           </div>
 
@@ -186,23 +262,22 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
             />
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="is_primary"
-                checked={formData.is_primary}
-                onCheckedChange={(checked) => updateFormData("is_primary", checked)}
-              />
-              <Label htmlFor="is_primary">Contatto principale</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) => updateFormData("is_active", checked)}
-              />
-              <Label htmlFor="is_active">Contatto attivo</Label>
-            </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="is_primary"
+              checked={formData.is_primary}
+              onCheckedChange={(checked) => updateFormData("is_primary", checked)}
+            />
+            <Label htmlFor="is_primary">Contatto principale dell'azienda</Label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="is_active"
+              checked={formData.is_active}
+              onCheckedChange={(checked) => updateFormData("is_active", checked)}
+            />
+            <Label htmlFor="is_active">Contatto attivo</Label>
           </div>
 
           <DialogFooter>
