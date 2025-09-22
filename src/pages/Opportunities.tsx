@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Plus, TrendingUp, DollarSign, Target, BarChart3, CheckCircle, XCircle, Clock, Edit, Trash2, Search, Filter, X } from "lucide-react"
+import { Plus, TrendingUp, DollarSign, Target, BarChart3, CheckCircle, XCircle, Clock, Edit, Trash2, Search, Filter, X, Building2 } from "lucide-react"
 import { AddOpportunityDialog } from "@/components/forms/AddOpportunityDialog"
 import { EditOpportunityDialog } from "@/components/forms/EditOpportunityDialog"
 import { supabase } from "@/integrations/supabase/client"
@@ -195,7 +195,7 @@ export default function Opportunities() {
     try {
       const { error } = await supabase
         .from('opportunities')
-        .update({ status: newStatus })
+        .update({ status: newStatus as "in_attesa" | "acquisita" | "persa" })
         .eq('id', opportunityId)
 
       if (error) throw error

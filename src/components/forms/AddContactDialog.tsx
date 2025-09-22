@@ -98,7 +98,7 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
           mobile: formData.mobile.trim() || null,
           position: formData.position.trim() || null,
           department: formData.department.trim() || null,
-          company_id: formData.company_id || null,
+          company_id: formData.company_id === "none" ? null : formData.company_id || null,
           notes: formData.notes.trim() || null,
           is_primary: formData.is_primary,
           is_active: formData.is_active
@@ -188,7 +188,7 @@ export function AddContactDialog({ open, onOpenChange, onContactAdded }: AddCont
                 <SelectValue placeholder="Seleziona un'azienda (opzionale)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna azienda</SelectItem>
+                <SelectItem value="none">Nessuna azienda</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
