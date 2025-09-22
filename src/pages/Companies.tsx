@@ -51,51 +51,62 @@ export default function Companies() {
   const { toast } = useToast()
   const { isAdmin } = useAuth()
 
-  const refreshCompanies = async () => {
-    try {
-      setLoading(true)
-      
-      // Query base per le aziende
-      let query = supabase
-        .from('crm_companies')
-        .select(`
-          *,
-          crm_contacts(count),
-          opportunities(count)
-        `)
+  // Alternativa più affidabile - Sostituisci la funzione refreshCompanies
 
-      // Filtra per admin se necessario
-      if (!isAdmin) {
-        query = query.eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-      }
+const refreshCompanies = async () => {
+  try {
+    setLoading(true)
+    
+    // Prima ottieni le aziende
+    let companiesQuery = supabase
+      .from('crm_companies')
+      .select('*')
 
-      const { data, error } = await query.order('name')
-
-      if (error) throw error
-
-      // Mappa i dati con i conteggi
-      const mappedData = data?.map(company => ({
-        ...company,
-        contacts_count: Array.isArray(company.crm_contacts) ? company.crm_contacts.length : 0,
-        opportunities_count: Array.isArray(company.opportunities) ? company.opportunities.length : 0
-      })) || []
-
-      setCompanies(mappedData)
-    } catch (error: any) {
-      console.error('Error loading companies:', error)
-      toast({
-        title: "Errore",
-        description: "Impossibile caricare le aziende",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
+    // Filtra per admin se necessario
+    if (!isAdmin) {
+      companiesQuery = companiesQuery.eq('user_id', (await supabase.auth.getUser()).data.user?.id)
     }
-  }
 
-  useEffect(() => {
-    refreshCompanies()
-  }, [isAdmin])
+    const { data: companiesData, error: companiesError } = await companiesQuery.order('name')
+
+    if (companiesError) throw companiesError
+
+    // Poi ottieni i conteggi per ogni azienda
+    const mappedData = await Promise.all(
+      (companiesData || []).map(async (company) => {
+        // Conta i contatti per questa specifica azienda
+        const { count: contactsCount } = await supabase
+          .from('crm_contacts')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', company.id)
+
+        // Conta le opportunità per questa specifica azienda  
+        const { count: opportunitiesCount } = await supabase
+          .from('opportunities')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', company.id)
+
+        return {
+          ...company,
+          contacts_count: contactsCount || 0,
+          opportunities_count: opportunitiesCount || 0
+        }
+      })
+    )
+
+    console.log('Loaded companies with correct counts:', mappedData)
+    setCompanies(mappedData)
+  } catch (error: any) {
+    console.error('Error loading companies:', error)
+    toast({
+      title: "Errore", 
+      description: "Impossibile caricare le aziende",
+      variant: "destructive"
+    })
+  } finally {
+    setLoading(false)
+  }
+}
 
   // Filtro e ricerca delle aziende
   const filteredAndSortedCompanies = useMemo(() => {
