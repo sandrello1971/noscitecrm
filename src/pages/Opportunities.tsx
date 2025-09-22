@@ -33,7 +33,6 @@ interface Opportunity {
   company_name?: string
   company_id?: string
   created_at: string
-  user_id?: string
   services?: OpportunityService[]
 }
 
@@ -196,7 +195,7 @@ export default function Opportunities() {
     try {
       const { error } = await supabase
         .from('opportunities')
-        .update({ status: newStatus as "in_attesa" | "acquisita" | "persa" })
+        .update({ status: newStatus })
         .eq('id', opportunityId)
 
       if (error) throw error
@@ -420,145 +419,171 @@ export default function Opportunities() {
         </Card>
       </div>
 
-      {/* Lista opportunità filtrate */}
-      <div className="grid gap-4">
-        {filteredAndSortedOpportunities.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">
-                {searchTerm || statusFilter !== "all" 
-                  ? "Nessuna opportunità corrisponde ai criteri di ricerca"
-                  : "Nessuna opportunità trovata"}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredAndSortedOpportunities.map((opportunity) => (
-            <Card key={opportunity.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <CardTitle className="text-lg">{opportunity.title}</CardTitle>
-                    <CardDescription>
-                      Cliente: {opportunity.company_name}
-                      {opportunity.expected_close_date && (
-                        <span className="ml-2">
-                          • Chiusura prevista: {new Date(opportunity.expected_close_date).toLocaleDateString('it-IT')}
-                        </span>
-                      )}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(opportunity.status)}
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedOpportunity(opportunity)
-                          setShowEditDialog(true)
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Eliminare l'opportunità?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Questa azione non può essere annullata. L'opportunità e tutti i servizi associati verranno eliminati definitivamente.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annulla</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteOpportunity(opportunity.id)}>
-                              Elimina
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
+      {/* Lista opportunità raggruppate per cliente */}
+      {filteredAndSortedOpportunities.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="text-muted-foreground">
+              {searchTerm || statusFilter !== "all" 
+                ? "Nessuna opportunità corrisponde ai criteri di ricerca"
+                : "Nessuna opportunità trovata"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {/* Raggruppa per cliente */}
+          {Object.entries(
+            filteredAndSortedOpportunities.reduce((groups, opportunity) => {
+              const client = opportunity.company_name || 'Senza Cliente'
+              if (!groups[client]) groups[client] = []
+              groups[client].push(opportunity)
+              return groups
+            }, {} as Record<string, typeof filteredAndSortedOpportunities>)
+          ).map(([clientName, clientOpportunities]) => (
+            <div key={clientName} className="space-y-4">
+              {/* Header del cliente */}
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">{clientName}</h3>
+                  <Badge variant="outline">
+                    {clientOpportunities.length} opportunità
+                  </Badge>
                 </div>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="space-y-4">
-                  {opportunity.description && (
-                    <p className="text-sm text-muted-foreground">{opportunity.description}</p>
-                  )}
-                  
-                  {/* Lista servizi */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Servizi:</h4>
-                    <div className="space-y-2">
-                      {opportunity.services?.map((service, index) => (
-                        <div key={service.id} className="flex justify-between items-center p-2 bg-muted rounded">
-                          <div>
-                            <span className="font-medium">{service.service_name}</span>
-                            <span className="text-sm text-muted-foreground ml-2">
-                              Quantità: {service.quantity}
-                            </span>
+                <div className="text-right text-sm text-muted-foreground">
+                  Valore totale: €{clientOpportunities.reduce((sum, opp) => sum + opp.amount, 0).toLocaleString()}
+                </div>
+              </div>
+
+              {/* Opportunità del cliente */}
+              <div className="grid gap-4 md:grid-cols-2">
+                {clientOpportunities.map((opportunity) => (
+                  <Card key={opportunity.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2">
+                          <CardTitle className="text-lg">{opportunity.title}</CardTitle>
+                          {opportunity.expected_close_date && (
+                            <CardDescription>
+                              Chiusura prevista: {new Date(opportunity.expected_close_date).toLocaleDateString('it-IT')}
+                            </CardDescription>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(opportunity.status)}
+                          <div className="flex gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedOpportunity(opportunity)
+                                setShowEditDialog(true)
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Eliminare l'opportunità?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Questa azione non può essere annullata. L'opportunità e tutti i servizi associati verranno eliminati definitivamente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteOpportunity(opportunity.id)}>
+                                    Elimina
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
-                          <div className="text-right">
-                            <div className="font-medium">€{service.total_price.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <div className="space-y-4">
+                        {opportunity.description && (
+                          <p className="text-sm text-muted-foreground">{opportunity.description}</p>
+                        )}
+                        
+                        {/* Lista servizi compatta */}
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">Servizi:</h4>
+                          <div className="space-y-1">
+                            {opportunity.services?.slice(0, 2).map((service) => (
+                              <div key={service.id} className="flex justify-between text-sm">
+                                <span className="truncate">{service.service_name}</span>
+                                <span className="text-muted-foreground">×{service.quantity}</span>
+                              </div>
+                            ))}
+                            {opportunity.services && opportunity.services.length > 2 && (
+                              <div className="text-xs text-muted-foreground">
+                                ...e altri {opportunity.services.length - 2} servizi
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-end pt-2 border-t">
+                          <div className="space-y-1">
                             <div className="text-sm text-muted-foreground">
-                              €{service.unit_price} × {service.quantity}
+                              Probabilità: {opportunity.win_probability}%
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Ponderato: €{Math.round(opportunity.amount * opportunity.win_probability / 100).toLocaleString()}
                             </div>
                           </div>
+                          
+                          <div className="text-right">
+                            <div className="text-xl font-bold">€{opportunity.amount.toLocaleString()}</div>
+                            {opportunity.status === 'in_attesa' && (
+                              <div className="flex gap-1 mt-2">
+                                <Select
+                                  value={opportunity.status}
+                                  onValueChange={(value) => handleStatusChange(opportunity.id, value)}
+                                >
+                                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="in_attesa">In Attesa</SelectItem>
+                                    <SelectItem value="acquisita">Acquisita</SelectItem>
+                                    <SelectItem value="persa">Persa</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <div className="space-y-1">
-                      <div className="text-sm text-muted-foreground">
-                        Probabilità di successo: {opportunity.win_probability}%
+                        
+                        {opportunity.notes && (
+                          <div className="pt-2 border-t">
+                            <p className="text-xs text-muted-foreground italic">
+                              {opportunity.notes.length > 80 
+                                ? `${opportunity.notes.substring(0, 80)}...`
+                                : opportunity.notes
+                              }
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Valore ponderato: €{Math.round(opportunity.amount * opportunity.win_probability / 100).toLocaleString()}
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">€{opportunity.amount.toLocaleString()}</div>
-                      {opportunity.status === 'in_attesa' && (
-                        <div className="flex gap-2 mt-2">
-                          <Select
-                            value={opportunity.status}
-                            onValueChange={(value) => handleStatusChange(opportunity.id, value)}
-                          >
-                            <SelectTrigger className="w-[140px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="in_attesa">In Attesa</SelectItem>
-                              <SelectItem value="acquisita">Acquisita</SelectItem>
-                              <SelectItem value="persa">Persa</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {opportunity.notes && (
-                    <div className="pt-2 border-t">
-                      <p className="text-sm text-muted-foreground">{opportunity.notes}</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Dialogs */}
       <AddOpportunityDialog
@@ -571,7 +596,7 @@ export default function Opportunities() {
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         onOpportunityUpdated={loadOpportunities}
-        opportunity={selectedOpportunity!}
+        opportunity={selectedOpportunity}
       />
     </div>
   )
