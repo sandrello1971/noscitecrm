@@ -38,6 +38,7 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
     temp_id: string
   }>>([])
 
+  // Effetto per impostare i dati del form quando il servizio cambia
   useEffect(() => {
     if (service && open) {
       setFormData({
@@ -53,8 +54,11 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
     }
   }, [service, open])
 
+  // Effetto per caricare dati di supporto e componenti esistenti
   useEffect(() => {
     async function fetchData() {
+      if (!service || !open) return
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
@@ -86,7 +90,7 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
         .from('crm_services')
         .select('*')
         .eq('is_active', true)
-        .neq('id', service?.id)
+        .neq('id', service.id) // Esclude il servizio corrente
 
       if (!isAdmin) {
         servicesQuery = servicesQuery.eq('user_id', user.id)
@@ -94,12 +98,32 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
 
       const { data: servicesData } = await servicesQuery.order('name')
       if (servicesData) setServices(servicesData)
-      
-      if (servicesData) setServices(servicesData)
+
+      // CARICA I COMPONENTI ESISTENTI del servizio se è di tipo composto
+      if (service.service_type === 'composed') {
+        const { data: compositionsData, error: compositionsError } = await supabase
+          .from('crm_service_compositions')
+          .select(`
+            *,
+            crm_services!crm_service_compositions_child_service_id_fkey(name, code)
+          `)
+          .eq('parent_service_id', service.id)
+
+        if (!compositionsError && compositionsData) {
+          const existingComponents = compositionsData.map(comp => ({
+            service_id: comp.child_service_id,
+            quantity: comp.quantity,
+            temp_id: `existing_${comp.id}` // Usiamo un ID temporaneo per i componenti esistenti
+          }))
+          setComponents(existingComponents)
+        }
+      } else {
+        setComponents([]) // Pulisce i componenti se il servizio non è più composto
+      }
     }
     
-    if (open) fetchData()
-  }, [open, service?.id])
+    fetchData()
+  }, [service, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,7 +133,8 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("User not authenticated")
 
-      const { error } = await supabase
+      // 1. Aggiorniamo il servizio principale
+      const { error: updateError } = await supabase
         .from('crm_services')
         .update({
           code: formData.code,
@@ -118,12 +143,49 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
           service_type: formData.service_type,
           unit_price: formData.unit_price ? parseFloat(formData.unit_price) : null,
           unit_of_measure: formData.unit_of_measure,
-          partner_id: formData.partner_id === "no-partner" ? null : formData.partner_id || null,
+          partner_id: formData.partner_id === "" ? null : formData.partner_id || null,
           is_active: formData.is_active,
         })
         .eq('id', service.id)
 
-      if (error) throw error
+      if (updateError) throw updateError
+
+      // 2. Se è un servizio composto, gestiamo le composizioni
+      if (formData.service_type === "composed") {
+        // Prima eliminiamo tutte le composizioni esistenti
+        const { error: deleteError } = await supabase
+          .from('crm_service_compositions')
+          .delete()
+          .eq('parent_service_id', service.id)
+
+        if (deleteError) throw deleteError
+
+        // Poi inseriamo le nuove composizioni
+        const validComponents = components.filter(comp => comp.service_id && comp.service_id !== "")
+        
+        if (validComponents.length > 0) {
+          const compositionsToInsert = validComponents.map(component => ({
+            user_id: user.id,
+            parent_service_id: service.id,
+            child_service_id: component.service_id,
+            quantity: component.quantity
+          }))
+
+          const { error: insertError } = await supabase
+            .from('crm_service_compositions')
+            .insert(compositionsToInsert)
+
+          if (insertError) throw insertError
+        }
+      } else {
+        // Se non è più un servizio composto, eliminiamo tutte le composizioni
+        const { error: deleteError } = await supabase
+          .from('crm_service_compositions')
+          .delete()
+          .eq('parent_service_id', service.id)
+
+        if (deleteError) throw deleteError
+      }
       
       toast({
         title: "Servizio aggiornato",
@@ -132,7 +194,8 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
       
       onServiceUpdated?.()
       onOpenChange(false)
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error updating service:', error)
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante l'aggiornamento del servizio.",
@@ -210,19 +273,30 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
               id="name"
               value={formData.name}
               onChange={(e) => updateFormData("name", e.target.value)}
-              placeholder="Consulenza IT"
+              placeholder="Nome del servizio"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="partner_id">Partner</Label>
+            <Label htmlFor="description">Descrizione</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => updateFormData("description", e.target.value)}
+              placeholder="Descrizione dettagliata del servizio"
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="partner_id">Partner/Fornitore</Label>
             <Select value={formData.partner_id} onValueChange={(value) => updateFormData("partner_id", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un partner (opzionale)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no-partner">Nessun partner</SelectItem>
+                <SelectItem value="">Nessun partner</SelectItem>
                 {partners.map((partner) => (
                   <SelectItem key={partner.id} value={partner.id}>
                     {partner.name}
@@ -232,20 +306,9 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrizione</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => updateFormData("description", e.target.value)}
-              placeholder="Descrizione dettagliata del servizio..."
-              rows={3}
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="unit_price">Prezzo Unitario (€)</Label>
+              <Label htmlFor="unit_price">Prezzo Unitario</Label>
               <Input
                 id="unit_price"
                 type="number"
@@ -297,9 +360,9 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
                         <SelectValue placeholder="Seleziona un servizio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services.map((serviceItem) => (
-                          <SelectItem key={serviceItem.id} value={serviceItem.id}>
-                            {serviceItem.code} - {serviceItem.name}
+                        {services.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.code} - {service.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -310,8 +373,9 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
                     <Input
                       type="number"
                       min="1"
+                      step="0.001"
                       value={component.quantity}
-                      onChange={(e) => updateComponent(component.temp_id, "quantity", parseInt(e.target.value) || 1)}
+                      onChange={(e) => updateComponent(component.temp_id, "quantity", parseFloat(e.target.value) || 1)}
                     />
                   </div>
                   <Button
