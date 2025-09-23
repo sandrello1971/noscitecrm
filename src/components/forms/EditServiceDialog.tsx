@@ -291,12 +291,12 @@ export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdate
 
           <div className="space-y-2">
             <Label htmlFor="partner_id">Partner/Fornitore</Label>
-            <Select value={formData.partner_id} onValueChange={(value) => updateFormData("partner_id", value)}>
+            <Select value={formData.partner_id || "none"} onValueChange={(value) => updateFormData("partner_id", value === "none" ? null : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un partner (opzionale)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessun partner</SelectItem>
+                <SelectItem value="none">Nessun partner</SelectItem>
                 {partners.map((partner) => (
                   <SelectItem key={partner.id} value={partner.id}>
                     {partner.name}
