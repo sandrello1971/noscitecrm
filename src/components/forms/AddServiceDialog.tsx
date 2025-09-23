@@ -37,13 +37,6 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
     temp_id: string
   }>>([])
 
-  interface ComponentWithService {
-    service_id: string
-    quantity: number
-    temp_id: string
-    service?: any
-  }
-
   useEffect(() => {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -97,7 +90,8 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("User not authenticated")
 
-      const { data, error } = await supabase
+      // 1. Prima creiamo il servizio principale
+      const { data: serviceData, error: serviceError } = await supabase
         .from('crm_services')
         .insert([{
           user_id: user.id,
@@ -110,12 +104,35 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
           partner_id: formData.partner_id || null,
           is_active: formData.is_active,
         }])
+        .select()
+        .single()
 
-      if (error) throw error
+      if (serviceError) throw serviceError
+
+      // 2. Se è un servizio composto, salviamo i componenti
+      if (formData.service_type === "composed" && components.length > 0) {
+        // Filtriamo solo i componenti con service_id valido
+        const validComponents = components.filter(comp => comp.service_id && comp.service_id !== "")
+        
+        if (validComponents.length > 0) {
+          const compositionsToInsert = validComponents.map(component => ({
+            user_id: user.id,
+            parent_service_id: serviceData.id, // ID del servizio appena creato
+            child_service_id: component.service_id,
+            quantity: component.quantity
+          }))
+
+          const { error: compositionsError } = await supabase
+            .from('crm_service_compositions')
+            .insert(compositionsToInsert)
+
+          if (compositionsError) throw compositionsError
+        }
+      }
       
       toast({
         title: "Servizio creato",
-        description: "Il servizio è stato creato con successo.",
+        description: `Il servizio ${formData.service_type === "composed" ? "composto" : "semplice"} è stato creato con successo.`,
       })
       
       onServiceAdded?.()
@@ -131,7 +148,8 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
         is_active: true
       })
       setComponents([])
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating service:', error)
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante la creazione del servizio.",
@@ -207,19 +225,30 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
               id="name"
               value={formData.name}
               onChange={(e) => updateFormData("name", e.target.value)}
-              placeholder="Consulenza IT"
+              placeholder="Nome del servizio"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="partner_id">Partner</Label>
+            <Label htmlFor="description">Descrizione</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => updateFormData("description", e.target.value)}
+              placeholder="Descrizione dettagliata del servizio"
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="partner_id">Partner/Fornitore</Label>
             <Select value={formData.partner_id} onValueChange={(value) => updateFormData("partner_id", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona un partner (opzionale)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no-partner">Nessun partner</SelectItem>
+                <SelectItem value="">Nessun partner</SelectItem>
                 {partners.map((partner) => (
                   <SelectItem key={partner.id} value={partner.id}>
                     {partner.name}
@@ -229,20 +258,9 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrizione</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => updateFormData("description", e.target.value)}
-              placeholder="Descrizione dettagliata del servizio..."
-              rows={3}
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="unit_price">Prezzo Unitario (€)</Label>
+              <Label htmlFor="unit_price">Prezzo Unitario</Label>
               <Input
                 id="unit_price"
                 type="number"
@@ -307,8 +325,9 @@ export function AddServiceDialog({ open, onOpenChange, onServiceAdded }: AddServ
                     <Input
                       type="number"
                       min="1"
+                      step="0.001"
                       value={component.quantity}
-                      onChange={(e) => updateComponent(component.temp_id, "quantity", parseInt(e.target.value) || 1)}
+                      onChange={(e) => updateComponent(component.temp_id, "quantity", parseFloat(e.target.value) || 1)}
                     />
                   </div>
                   <Button
