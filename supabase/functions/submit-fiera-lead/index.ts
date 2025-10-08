@@ -78,9 +78,9 @@ serve(async (req) => {
     // Prepare notes with company info if provided
     let finalNotes = leadData.notes || '';
     if (leadData.company_name) {
-      finalNotes = `LEAD FIERA - Azienda: ${leadData.company_name}${finalNotes ? '\n\n' + finalNotes : ''}`;
+      finalNotes = `LEAD FIERA - inridia comolake - Azienda: ${leadData.company_name}${finalNotes ? '\n\n' + finalNotes : ''}`;
     } else {
-      finalNotes = `LEAD FIERA${finalNotes ? '\n\n' + finalNotes : ''}`;
+      finalNotes = `LEAD FIERA - inridia comolake${finalNotes ? '\n\n' + finalNotes : ''}`;
     }
 
     // Insert contact
