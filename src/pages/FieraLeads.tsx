@@ -82,7 +82,7 @@ const FieraLeads = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex flex-col items-center justify-center p-4">
       <div className="mb-8">
-        <img src={logoInridia} alt="INRIDIA" className="h-24 w-auto object-contain" />
+        <img src={logoInridia} alt="INRIDIA" className="h-40 w-auto object-contain" />
       </div>
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
