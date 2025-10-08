@@ -16,6 +16,7 @@ import Opportunities from "@/pages/Opportunities"
 import Orders from "@/pages/Orders"
 import Settings from "@/pages/Settings"
 import NotFound from "@/pages/NotFound"
+import FieraLeads from "@/pages/FieraLeads"
 
 const queryClient = new QueryClient()
 
@@ -28,6 +29,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
+              <Route path="/fiera-leads" element={<FieraLeads />} />
               
               {/* Protected routes */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
