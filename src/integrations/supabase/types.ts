@@ -1516,6 +1516,45 @@ export type Database = {
           },
         ]
       }
+      expense_categories: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          eligible_expenses: string[] | null
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          max_percentage: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          eligible_expenses?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          max_percentage?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          eligible_expenses?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          max_percentage?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integration_sync_logs: {
         Row: {
           created_at: string
@@ -2308,10 +2347,12 @@ export type Database = {
           bando_id: string | null
           created_at: string | null
           created_by: string
+          cup_code: string | null
           description: string | null
           end_date: string | null
           id: string
           notes: string | null
+          parsed_data: Json | null
           progress_percentage: number | null
           project_documents: string[] | null
           project_manager: string | null
@@ -2332,10 +2373,12 @@ export type Database = {
           bando_id?: string | null
           created_at?: string | null
           created_by: string
+          cup_code?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
           notes?: string | null
+          parsed_data?: Json | null
           progress_percentage?: number | null
           project_documents?: string[] | null
           project_manager?: string | null
@@ -2356,10 +2399,12 @@ export type Database = {
           bando_id?: string | null
           created_at?: string | null
           created_by?: string
+          cup_code?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
           notes?: string | null
+          parsed_data?: Json | null
           progress_percentage?: number | null
           project_documents?: string[] | null
           project_manager?: string | null
@@ -2923,7 +2968,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       log_admin_access: {
         Args: { p_action: string; p_record_id?: string; p_table_name: string }
