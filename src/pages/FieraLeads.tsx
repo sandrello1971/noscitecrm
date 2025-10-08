@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import logoInridia from "@/assets/logo-inridia.jpg";
 
 interface LeadFormData {
   first_name: string;
@@ -79,7 +80,10 @@ const FieraLeads = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex flex-col items-center justify-center p-4">
+      <div className="mb-8">
+        <img src={logoInridia} alt="INRIDIA" className="h-24 w-auto object-contain" />
+      </div>
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
