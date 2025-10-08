@@ -135,7 +135,8 @@ export default function Contacts() {
         (contact.phone && contact.phone.includes(searchTerm)) ||
         (contact.mobile && contact.mobile.includes(searchTerm)) ||
         (contact.position && contact.position.toLowerCase().includes(searchLower)) ||
-        (contact.company_name && contact.company_name.toLowerCase().includes(searchLower))
+        (contact.company_name && contact.company_name.toLowerCase().includes(searchLower)) ||
+        (contact.notes && contact.notes.toLowerCase().includes(searchLower))
       )
     }
 
