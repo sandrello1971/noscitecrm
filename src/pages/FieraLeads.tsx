@@ -82,10 +82,9 @@ const FieraLeads = () => {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Registrazione Fiera</CardTitle>
-          <CardDescription className="text-lg">
-            Compila il form per essere ricontattato
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            Grazie per esser venuti a trovarci, compilate i vostri riferimenti e nei prossimi giorni vi ricontatteremo
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -115,7 +114,7 @@ const FieraLeads = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email **</Label>
                 <Input
                   id="email"
                   type="email"
@@ -126,7 +125,7 @@ const FieraLeads = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Telefono</Label>
+                <Label htmlFor="phone">Telefono **</Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -136,6 +135,8 @@ const FieraLeads = () => {
                 />
               </div>
             </div>
+
+            <p className="text-sm text-muted-foreground">** Inserisci almeno email o telefono</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -182,7 +183,7 @@ const FieraLeads = () => {
             </Button>
 
             <p className="text-sm text-muted-foreground text-center">
-              * Campi obbligatori. Inserisci almeno email o telefono.
+              * Campi obbligatori
             </p>
           </form>
         </CardContent>
