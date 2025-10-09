@@ -87,7 +87,7 @@ const FieraLeads = () => {
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            Grazie per esser venuti a trovarci, compilate i vostri riferimenti e nei prossimi giorni vi ricontatteremo
+            Grazie per esser passati a trovarci, compilate i vostri riferimenti e nei prossimi giorni vi ricontatteremo
           </CardTitle>
         </CardHeader>
         <CardContent>
