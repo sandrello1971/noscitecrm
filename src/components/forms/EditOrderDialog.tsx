@@ -391,10 +391,13 @@ export function EditOrderDialog({
             <div className="space-y-2">
               <Label htmlFor="company">Cliente *</Label>
               <Select 
-                value={formData.company_id || ""} 
+                value={formData.company_id} 
                 onValueChange={(value) => updateFormData('company_id', value)}
-              >  <SelectTrigger>
-                  <SelectValue placeholder="Seleziona un cliente" />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un cliente">
+                    {formData.company_id && companies.find(c => c.id === formData.company_id)?.name}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {companies.map((company) => (
