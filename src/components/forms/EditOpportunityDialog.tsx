@@ -322,7 +322,12 @@ export function EditOpportunityDialog({
               <Label htmlFor="company">Cliente *</Label>
               <Select value={formData.company_id} onValueChange={(value) => updateFormData('company_id', value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleziona un cliente" />
+                  <SelectValue>
+                    {formData.company_id 
+                      ? companies.find(c => c.id === formData.company_id)?.name 
+                      : "Seleziona un cliente"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {companies.map((company) => (
