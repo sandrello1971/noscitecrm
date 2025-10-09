@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Users, Mail, Phone, Building2, Edit, Trash2, Search, X, UserCheck, Crown } from "lucide-react"
+import { Plus, Users, Mail, Phone, Building2, Edit, Trash2, Search, X, UserCheck, Crown, Download } from "lucide-react"
+import * as XLSX from 'xlsx'
 import { AddContactDialog } from "@/components/forms/AddContactDialog"
 import { EditContactDialog } from "@/components/forms/EditContactDialog"
 import { supabase } from "@/integrations/supabase/client"
@@ -251,6 +252,60 @@ export default function Contacts() {
     setSortOrder("asc")
   }
 
+  const exportToExcel = () => {
+    // Prepara i dati per l'export (usa i dati filtrati)
+    const dataToExport = filteredAndSortedContacts.map(contact => ({
+      'Nome': contact.first_name,
+      'Cognome': contact.last_name,
+      'Email': contact.email || '',
+      'Telefono': contact.phone || '',
+      'Cellulare': contact.mobile || '',
+      'Azienda': contact.company_name || '',
+      'Posizione': contact.position || '',
+      'Dipartimento': contact.department || '',
+      'Contatto Principale': contact.is_primary ? 'Sì' : 'No',
+      'Status': contact.is_active ? 'Attivo' : 'Inattivo',
+      'Note': contact.notes || '',
+      'Data Creazione': new Date(contact.created_at).toLocaleDateString('it-IT')
+    }))
+
+    // Crea il workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(dataToExport)
+
+    // Imposta la larghezza delle colonne
+    const colWidths = [
+      { wch: 15 }, // Nome
+      { wch: 15 }, // Cognome
+      { wch: 25 }, // Email
+      { wch: 15 }, // Telefono
+      { wch: 15 }, // Cellulare
+      { wch: 30 }, // Azienda
+      { wch: 20 }, // Posizione
+      { wch: 20 }, // Dipartimento
+      { wch: 15 }, // Principale
+      { wch: 10 }, // Status
+      { wch: 40 }, // Note
+      { wch: 15 }  // Data
+    ]
+    ws['!cols'] = colWidths
+
+    // Aggiungi il foglio al workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Contatti')
+
+    // Genera il nome file con timestamp
+    const timestamp = new Date().toISOString().split('T')[0]
+    const fileName = `contatti_export_${timestamp}.xlsx`
+
+    // Scarica il file
+    XLSX.writeFile(wb, fileName)
+
+    toast({
+      title: "Export completato",
+      description: `${dataToExport.length} contatti esportati in ${fileName}`,
+    })
+  }
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
@@ -282,10 +337,16 @@ export default function Contacts() {
             Gestisci l'anagrafica dei contatti aziendali - {filteredAndSortedContacts.length} di {contacts.length} contatti
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuovo Contatto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <Download className="mr-2 h-4 w-4" />
+            Esporta Excel
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuovo Contatto
+          </Button>
+        </div>
       </div>
 
       {/* Statistiche */}

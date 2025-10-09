@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Building2, Edit, Trash2, Mail, Phone, Globe, Plus, Search, X, Users, Briefcase, TrendingUp } from "lucide-react"
+import { Building2, Edit, Trash2, Mail, Phone, Globe, Plus, Search, X, Users, Briefcase, TrendingUp, Download } from "lucide-react"
+import * as XLSX from 'xlsx'
 import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
 import { EditCompanyDialog } from "@/components/forms/EditCompanyDialog"
 import { supabase } from "@/integrations/supabase/client"
@@ -235,6 +236,68 @@ export default function Companies() {
     setSortOrder("asc")
   }
 
+  const exportToExcel = () => {
+    // Prepara i dati per l'export (usa i dati filtrati)
+    const dataToExport = filteredAndSortedCompanies.map(company => ({
+      'Nome': company.name,
+      'Partita IVA': company.vat_number || '',
+      'Codice Fiscale': company.tax_code || '',
+      'Email': company.email || '',
+      'Telefono': company.phone || '',
+      'Sito Web': company.website || '',
+      'Indirizzo': company.address || '',
+      'Città': company.city || '',
+      'CAP': company.postal_code || '',
+      'Paese': company.country || '',
+      'Status': company.is_active ? 'Attiva' : 'Inattiva',
+      'Partner': company.is_partner ? 'Sì' : 'No',
+      'N. Contatti': company.contacts_count || 0,
+      'N. Opportunità': company.opportunities_count || 0,
+      'Note': company.notes || '',
+      'Data Creazione': new Date(company.created_at).toLocaleDateString('it-IT')
+    }))
+
+    // Crea il workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(dataToExport)
+
+    // Imposta la larghezza delle colonne
+    const colWidths = [
+      { wch: 30 }, // Nome
+      { wch: 15 }, // P.IVA
+      { wch: 15 }, // CF
+      { wch: 25 }, // Email
+      { wch: 15 }, // Telefono
+      { wch: 25 }, // Sito
+      { wch: 30 }, // Indirizzo
+      { wch: 20 }, // Città
+      { wch: 10 }, // CAP
+      { wch: 10 }, // Paese
+      { wch: 10 }, // Status
+      { wch: 10 }, // Partner
+      { wch: 12 }, // Contatti
+      { wch: 12 }, // Opportunità
+      { wch: 40 }, // Note
+      { wch: 15 }  // Data
+    ]
+    ws['!cols'] = colWidths
+
+    // Aggiungi il foglio al workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Aziende')
+
+    // Genera il nome file con timestamp
+    const timestamp = new Date().toISOString().split('T')[0]
+    const fileName = `aziende_export_${timestamp}.xlsx`
+
+    // Scarica il file
+    XLSX.writeFile(wb, fileName)
+
+    toast({
+      title: "Export completato",
+      description: `${dataToExport.length} aziende esportate in ${fileName}`,
+    })
+  }
+
   // Statistiche calcolate sui risultati filtrati
   const stats = useMemo(() => {
     const filtered = filteredAndSortedCompanies
@@ -258,10 +321,16 @@ export default function Companies() {
             Gestisci l'anagrafica delle aziende clienti - {stats.total} di {companies.length} aziende
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuova Azienda
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <Download className="mr-2 h-4 w-4" />
+            Esporta Excel
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuova Azienda
+          </Button>
+        </div>
       </div>
 
       {/* Statistiche */}
