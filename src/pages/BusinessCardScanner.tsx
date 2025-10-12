@@ -25,6 +25,7 @@ export default function BusinessCardScanner() {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<OCRData>({});
   const [showCamera, setShowCamera] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,6 +51,7 @@ export default function BusinessCardScanner() {
       });
       console.log('Camera stream obtained:', stream);
       streamRef.current = stream;
+      setIsVideoReady(false);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         console.log('Video srcObject set');
@@ -68,6 +70,7 @@ export default function BusinessCardScanner() {
       streamRef.current = null;
     }
     setShowCamera(false);
+    setIsVideoReady(false);
   };
 
   const captureImage = () => {
@@ -349,14 +352,21 @@ export default function BusinessCardScanner() {
                       ref={videoRef}
                       autoPlay
                       playsInline
+                      onLoadedMetadata={() => {
+                        console.log('Video metadata loaded');
+                        setIsVideoReady(true);
+                      }}
                       className="max-w-full rounded-lg shadow-lg"
                     />
-                    <Button onClick={() => {
-                      console.log('Button clicked, showCamera:', showCamera);
-                      captureImage();
-                    }}>
+                    <Button 
+                      onClick={() => {
+                        console.log('Button clicked, isVideoReady:', isVideoReady);
+                        captureImage();
+                      }}
+                      disabled={!isVideoReady}
+                    >
                       <Camera className="mr-2 h-4 w-4" />
-                      Scatta Foto
+                      {isVideoReady ? 'Scatta Foto' : 'Caricamento...'}
                     </Button>
                   </>
                 ) : (
