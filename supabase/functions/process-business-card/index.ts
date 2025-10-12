@@ -28,45 +28,54 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: `You are an expert at extracting information from business cards. Extract the following information and return it as a JSON object:
+            content: `You are an expert at extracting contact information from business cards. You must be extremely accurate and careful.
+
+Extract ALL information from the business card and return it as a JSON object with these exact fields:
 {
-  "firstName": "first name of the person",
-  "lastName": "last name of the person",
-  "company": "company name",
-  "position": "job title/position",
-  "email": "email address",
-  "phone": "landline phone number",
-  "mobile": "mobile phone number"
+  "firstName": "person's first name (given name)",
+  "lastName": "person's last name (family name/surname)",
+  "company": "company or organization name",
+  "position": "job title or role",
+  "email": "email address in lowercase",
+  "phone": "landline/office phone number",
+  "mobile": "mobile/cell phone number"
 }
 
-Rules:
-- If any field is not found, return an empty string for that field
-- For Italian phone numbers, include the full number with area code
-- Distinguish between mobile (starting with 3) and landline phones
-- Return ONLY the JSON object, no additional text`
+CRITICAL RULES:
+1. Return ONLY valid JSON, no markdown formatting or extra text
+2. If a field is not found or unclear, use an empty string ""
+3. For names: carefully distinguish first name from last name
+4. For phones: distinguish mobile (typically starts with 3 in Italy) from landline
+5. Keep full phone numbers including area codes and country codes if present
+6. Email must be lowercase and complete
+7. Be extremely careful with OCR - verify each character
+8. If text is unclear, leave that field empty rather than guessing
+
+Return ONLY the JSON object.`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extract the business card information from this image:'
+                text: 'Please carefully extract all contact information from this business card image. Be precise and accurate.'
               },
               {
                 type: 'image_url',
                 image_url: {
-                  url: imageBase64
+                  url: imageBase64,
+                  detail: 'high'
                 }
               }
             ]
           }
         ],
         max_tokens: 500,
-        temperature: 0.1
+        temperature: 0
       }),
     });
 
