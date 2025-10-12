@@ -1,1 +1,4 @@
 project_id = "cpopaqguywwaqprrvony"
+
+[functions.process-business-card]
+verify_jwt = false
