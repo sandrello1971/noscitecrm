@@ -44,23 +44,28 @@ export default function BusinessCardScanner() {
   }, [previewUrl]);
 
   const startCamera = async () => {
-    console.log('startCamera called');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
       });
-      console.log('Camera stream obtained:', stream);
       streamRef.current = stream;
       setIsVideoReady(false);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        console.log('Video srcObject set');
+        // Fallback: enable button after 2 seconds if events don't fire
+        setTimeout(() => {
+          setIsVideoReady(true);
+        }, 2000);
       }
       setShowCamera(true);
-      console.log('showCamera set to true');
     } catch (error) {
-      console.error('Camera error:', error);
       toast.error('Impossibile accedere alla fotocamera');
+      console.error(error);
     }
   };
 
@@ -74,16 +79,12 @@ export default function BusinessCardScanner() {
   };
 
   const captureImage = () => {
-    console.log('captureImage called');
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       
-      console.log('Video dimensions:', video.videoWidth, video.videoHeight);
-      
-      // Check if video is ready
       if (video.videoWidth === 0 || video.videoHeight === 0) {
-        toast.error('La fotocamera non è ancora pronta. Riprova.');
+        toast.error('Attendi che la fotocamera sia pronta');
         return;
       }
       
@@ -94,24 +95,14 @@ export default function BusinessCardScanner() {
         ctx.drawImage(video, 0, 0);
         canvas.toBlob((blob) => {
           if (blob) {
-            console.log('Blob created, size:', blob.size);
             const file = new File([blob], 'business-card.jpg', { type: 'image/jpeg' });
             handleFileSelect(file);
             stopCamera();
           } else {
-            console.error('Failed to create blob');
             toast.error('Errore nella cattura dell\'immagine');
           }
         }, 'image/jpeg', 0.95);
-      } else {
-        console.error('Could not get canvas context');
       }
-    } else {
-      console.error('videoRef or canvasRef not available', {
-        video: !!videoRef.current,
-        canvas: !!canvasRef.current
-      });
-      toast.error('Fotocamera non disponibile');
     }
   };
 
@@ -345,33 +336,24 @@ export default function BusinessCardScanner() {
             </TabsContent>
 
             <TabsContent value="camera" className="space-y-4">
-              <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-4 p-4">
                 {showCamera ? (
                   <>
-                    <div className="w-full max-w-md aspect-video bg-muted rounded-lg overflow-hidden">
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        onLoadedMetadata={() => {
-                          console.log('Video metadata loaded');
-                          setIsVideoReady(true);
-                        }}
-                        onCanPlay={() => {
-                          console.log('Video can play');
-                          setIsVideoReady(true);
-                        }}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      onLoadedMetadata={() => setIsVideoReady(true)}
+                      onCanPlay={() => setIsVideoReady(true)}
+                      className="w-full max-w-md rounded-lg shadow-lg"
+                      style={{ maxHeight: '400px' }}
+                    />
                     <Button 
-                      onClick={() => {
-                        console.log('Button clicked, isVideoReady:', isVideoReady);
-                        captureImage();
-                      }}
+                      onClick={captureImage}
                       disabled={!isVideoReady}
                       size="lg"
+                      className="w-full max-w-md"
                     >
                       <Camera className="mr-2 h-4 w-4" />
                       {isVideoReady ? 'Scatta Foto' : 'Caricamento...'}
