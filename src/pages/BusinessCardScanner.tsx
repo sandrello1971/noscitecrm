@@ -348,22 +348,30 @@ export default function BusinessCardScanner() {
               <div className="flex flex-col items-center gap-4">
                 {showCamera ? (
                   <>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      onLoadedMetadata={() => {
-                        console.log('Video metadata loaded');
-                        setIsVideoReady(true);
-                      }}
-                      className="max-w-full rounded-lg shadow-lg"
-                    />
+                    <div className="w-full max-w-md aspect-video bg-muted rounded-lg overflow-hidden">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        onLoadedMetadata={() => {
+                          console.log('Video metadata loaded');
+                          setIsVideoReady(true);
+                        }}
+                        onCanPlay={() => {
+                          console.log('Video can play');
+                          setIsVideoReady(true);
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <Button 
                       onClick={() => {
                         console.log('Button clicked, isVideoReady:', isVideoReady);
                         captureImage();
                       }}
                       disabled={!isVideoReady}
+                      size="lg"
                     >
                       <Camera className="mr-2 h-4 w-4" />
                       {isVideoReady ? 'Scatta Foto' : 'Caricamento...'}
