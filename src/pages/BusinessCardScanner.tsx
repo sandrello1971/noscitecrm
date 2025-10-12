@@ -67,9 +67,19 @@ export default function BusinessCardScanner() {
   };
 
   const captureImage = () => {
+    console.log('captureImage called');
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
       const video = videoRef.current;
+      
+      console.log('Video dimensions:', video.videoWidth, video.videoHeight);
+      
+      // Check if video is ready
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        toast.error('La fotocamera non è ancora pronta. Riprova.');
+        return;
+      }
+      
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
@@ -77,12 +87,24 @@ export default function BusinessCardScanner() {
         ctx.drawImage(video, 0, 0);
         canvas.toBlob((blob) => {
           if (blob) {
+            console.log('Blob created, size:', blob.size);
             const file = new File([blob], 'business-card.jpg', { type: 'image/jpeg' });
             handleFileSelect(file);
             stopCamera();
+          } else {
+            console.error('Failed to create blob');
+            toast.error('Errore nella cattura dell\'immagine');
           }
         }, 'image/jpeg', 0.95);
+      } else {
+        console.error('Could not get canvas context');
       }
+    } else {
+      console.error('videoRef or canvasRef not available', {
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current
+      });
+      toast.error('Fotocamera non disponibile');
     }
   };
 
