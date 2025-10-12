@@ -57,6 +57,12 @@ export default function BusinessCardScanner() {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // iOS Safari requires explicit play() call
+        try {
+          await videoRef.current.play();
+        } catch (err) {
+          console.error('Error playing video:', err);
+        }
         // Fallback: enable button after 2 seconds if events don't fire
         setTimeout(() => {
           setIsVideoReady(true);
@@ -354,9 +360,10 @@ export default function BusinessCardScanner() {
                       autoPlay
                       playsInline
                       muted
+                      webkit-playsinline="true"
                       onLoadedMetadata={() => setIsVideoReady(true)}
                       onCanPlay={() => setIsVideoReady(true)}
-                      className="w-full max-w-md rounded-lg shadow-lg"
+                      className="w-full max-w-md rounded-lg shadow-lg bg-black"
                       style={{ maxHeight: '400px' }}
                     />
                     <Button 
