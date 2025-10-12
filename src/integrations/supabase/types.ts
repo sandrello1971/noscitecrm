@@ -667,6 +667,66 @@ export type Database = {
         }
         Relationships: []
       }
+      business_card_scans: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          corrected_data: Json | null
+          created_at: string
+          extracted_data: Json
+          id: string
+          image_url: string
+          ocr_confidence: number | null
+          original_file_name: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          corrected_data?: Json | null
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          image_url: string
+          ocr_confidence?: number | null
+          original_file_name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          corrected_data?: Json | null
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          image_url?: string
+          ocr_confidence?: number | null
+          original_file_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_card_scans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_card_scans_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_targets: {
         Row: {
           company_id: string
@@ -1912,6 +1972,42 @@ export type Database = {
           read_at?: string | null
           title?: string
           type?: Database["public"]["Enums"]["notification_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ocr_settings: {
+        Row: {
+          auto_create_company: boolean | null
+          auto_create_contact: boolean | null
+          created_at: string
+          field_mappings: Json | null
+          id: string
+          preferred_language: string
+          quality_threshold: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_create_company?: boolean | null
+          auto_create_contact?: boolean | null
+          created_at?: string
+          field_mappings?: Json | null
+          id?: string
+          preferred_language?: string
+          quality_threshold?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_create_company?: boolean | null
+          auto_create_contact?: boolean | null
+          created_at?: string
+          field_mappings?: Json | null
+          id?: string
+          preferred_language?: string
+          quality_threshold?: number | null
           updated_at?: string
           user_id?: string
         }

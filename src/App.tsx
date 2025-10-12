@@ -17,6 +17,9 @@ import Orders from "@/pages/Orders"
 import Settings from "@/pages/Settings"
 import NotFound from "@/pages/NotFound"
 import FieraLeads from "@/pages/FieraLeads"
+import BusinessCardScanner from "@/pages/BusinessCardScanner"
+import ScanHistory from "@/pages/ScanHistory"
+import OCRSettings from "@/pages/OCRSettings"
 
 const queryClient = new QueryClient()
 
@@ -46,6 +49,9 @@ function App() {
           <Route path="/services" element={<Services />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/orders" element={<Orders />} />
+          <Route path="/business-card-scanner" element={<BusinessCardScanner />} />
+          <Route path="/scan-history" element={<ScanHistory />} />
+          <Route path="/ocr-settings" element={<OCRSettings />} />
           <Route path="/settings" element={<Settings />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>
