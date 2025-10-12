@@ -32,12 +32,6 @@ export default function BusinessCardScanner() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-    }
-  }, [user, navigate]);
-
-  useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -257,15 +251,39 @@ export default function BusinessCardScanner() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Scanner Biglietti da Visita</CardTitle>
-          <CardDescription>
-            Scansiona o carica un biglietto da visita per estrarre automaticamente i dati del contatto
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img 
+              src="/nosciteLOGO.png" 
+              alt="Noscite" 
+              className="h-10 w-10 object-contain"
+            />
+            <div className="flex flex-col">
+              <span className="font-bold text-lg text-[#5DACA8]">NOSCITE</span>
+              <span className="text-xs text-[#E07A47] font-medium -mt-1">
+                Scanner Biglietti
+              </span>
+            </div>
+          </div>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
+            Vai al CRM
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 container mx-auto p-4 sm:p-6 max-w-4xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Scanner Biglietti da Visita</CardTitle>
+            <CardDescription>
+              Scansiona o carica un biglietto da visita per estrarre automaticamente i dati del contatto
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
           <Tabs defaultValue="upload" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="upload" onClick={stopCamera}>
@@ -462,6 +480,7 @@ export default function BusinessCardScanner() {
           )}
         </CardContent>
       </Card>
+      </main>
     </div>
   );
 }

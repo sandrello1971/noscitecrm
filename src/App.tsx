@@ -34,6 +34,13 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/fiera-leads" element={<FieraLeads />} />
               
+              {/* Scanner standalone webapp */}
+              <Route path="/scanner" element={
+                <ProtectedRoute>
+                  <BusinessCardScanner />
+                </ProtectedRoute>
+              } />
+              
               {/* Protected routes */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route
@@ -49,9 +56,6 @@ function App() {
           <Route path="/services" element={<Services />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/orders" element={<Orders />} />
-          <Route path="/business-card-scanner" element={<BusinessCardScanner />} />
-          <Route path="/scan-history" element={<ScanHistory />} />
-          <Route path="/ocr-settings" element={<OCRSettings />} />
           <Route path="/settings" element={<Settings />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>

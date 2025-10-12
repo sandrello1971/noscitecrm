@@ -7,10 +7,7 @@ import {
   ShoppingCart,
   Package,
   TrendingUp,
-  LogOut,
-  ScanLine,
-  History,
-  SlidersHorizontal
+  LogOut
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -36,12 +33,6 @@ const items = [
   { title: "Opportunità", url: "/opportunities", icon: TrendingUp },
   { title: "Commesse", url: "/orders", icon: ShoppingCart },
   { title: "Impostazioni", url: "/settings", icon: Settings },
-]
-
-const scannerItems = [
-  { title: "Scanner Biglietti", url: "/business-card-scanner", icon: ScanLine },
-  { title: "Cronologia", url: "/scan-history", icon: History },
-  { title: "Impostazioni OCR", url: "/ocr-settings", icon: SlidersHorizontal, adminOnly: true },
 ]
 
 export function AppSidebar() {
@@ -110,26 +101,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Scanner Biglietti</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {scannerItems
-                .filter((item) => !item.adminOnly || isAdmin)
-                .map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink to={item.url} end className={getNavCls}>
-                        <item.icon className="mr-2 h-4 w-4" />
-                        {state !== "collapsed" && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
