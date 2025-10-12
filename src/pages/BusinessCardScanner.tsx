@@ -139,7 +139,7 @@ export default function BusinessCardScanner() {
     if (!selectedFile) return;
 
     try {
-      const result = await processBusinessCard(selectedFile, 'ita+eng');
+      const result = await processBusinessCard(selectedFile);
       setExtractedData(result.data);
       setFormData(result.data);
       setConfidence(result.confidence);
