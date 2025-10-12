@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOCR, type OCRData } from '@/hooks/useOCR';
 import { generateVCard, downloadVCard } from '@/utils/vcard';
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 export default function BusinessCardScanner() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -30,6 +32,7 @@ export default function BusinessCardScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
@@ -314,9 +317,9 @@ export default function BusinessCardScanner() {
             defaultValue="upload" 
             className="w-full"
             onValueChange={(value) => {
-              if (value === 'camera') {
+              if (value === 'camera' && !isMobile) {
                 startCamera();
-              } else {
+              } else if (value !== 'camera') {
                 stopCamera();
               }
             }}
@@ -328,7 +331,7 @@ export default function BusinessCardScanner() {
               </TabsTrigger>
               <TabsTrigger value="camera">
                 <Camera className="mr-2 h-4 w-4" />
-                Usa Fotocamera
+                Fotocamera
               </TabsTrigger>
             </TabsList>
 
@@ -353,31 +356,60 @@ export default function BusinessCardScanner() {
 
             <TabsContent value="camera" className="space-y-4">
               <div className="flex flex-col items-center gap-4 p-4">
-                {showCamera ? (
-                  <>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      webkit-playsinline="true"
-                      onLoadedMetadata={() => setIsVideoReady(true)}
-                      onCanPlay={() => setIsVideoReady(true)}
-                      className="w-full max-w-md rounded-lg shadow-lg bg-black"
-                      style={{ maxHeight: '400px' }}
+                {isMobile ? (
+                  // Mobile: Use native camera input
+                  <div className="w-full space-y-4">
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileInput}
+                      className="hidden"
                     />
                     <Button 
-                      onClick={captureImage}
-                      disabled={!isVideoReady}
+                      onClick={() => cameraInputRef.current?.click()}
                       size="lg"
-                      className="w-full max-w-md"
+                      className="w-full"
                     >
                       <Camera className="mr-2 h-4 w-4" />
-                      {isVideoReady ? 'Scatta Foto' : 'Caricamento...'}
+                      Scatta Foto
                     </Button>
-                  </>
+                    {previewUrl && (
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-full rounded-lg shadow-lg"
+                      />
+                    )}
+                  </div>
                 ) : (
-                  <p className="text-muted-foreground">Clicca sulla tab "Usa Fotocamera" per avviare la camera</p>
+                  // Desktop: Use getUserMedia
+                  showCamera ? (
+                    <>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        onLoadedMetadata={() => setIsVideoReady(true)}
+                        onCanPlay={() => setIsVideoReady(true)}
+                        className="w-full max-w-md rounded-lg shadow-lg bg-black"
+                        style={{ maxHeight: '400px' }}
+                      />
+                      <Button 
+                        onClick={captureImage}
+                        disabled={!isVideoReady}
+                        size="lg"
+                        className="w-full max-w-md"
+                      >
+                        <Camera className="mr-2 h-4 w-4" />
+                        {isVideoReady ? 'Scatta Foto' : 'Caricamento...'}
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">Inizializzazione fotocamera...</p>
+                  )
                 )}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
