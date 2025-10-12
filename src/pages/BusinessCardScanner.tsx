@@ -43,18 +43,22 @@ export default function BusinessCardScanner() {
   }, [previewUrl]);
 
   const startCamera = async () => {
+    console.log('startCamera called');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'environment' } 
       });
+      console.log('Camera stream obtained:', stream);
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        console.log('Video srcObject set');
       }
       setShowCamera(true);
+      console.log('showCamera set to true');
     } catch (error) {
+      console.error('Camera error:', error);
       toast.error('Impossibile accedere alla fotocamera');
-      console.error(error);
     }
   };
 
@@ -339,7 +343,7 @@ export default function BusinessCardScanner() {
 
             <TabsContent value="camera" className="space-y-4">
               <div className="flex flex-col items-center gap-4">
-                {showCamera && (
+                {showCamera ? (
                   <>
                     <video
                       ref={videoRef}
@@ -347,11 +351,16 @@ export default function BusinessCardScanner() {
                       playsInline
                       className="max-w-full rounded-lg shadow-lg"
                     />
-                    <Button onClick={captureImage}>
+                    <Button onClick={() => {
+                      console.log('Button clicked, showCamera:', showCamera);
+                      captureImage();
+                    }}>
                       <Camera className="mr-2 h-4 w-4" />
                       Scatta Foto
                     </Button>
                   </>
+                ) : (
+                  <p className="text-muted-foreground">Clicca sulla tab "Usa Fotocamera" per avviare la camera</p>
                 )}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
