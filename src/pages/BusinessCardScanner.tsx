@@ -304,13 +304,23 @@ export default function BusinessCardScanner() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-          <Tabs defaultValue="upload" className="w-full">
+          <Tabs 
+            defaultValue="upload" 
+            className="w-full"
+            onValueChange={(value) => {
+              if (value === 'camera') {
+                startCamera();
+              } else {
+                stopCamera();
+              }
+            }}
+          >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="upload" onClick={stopCamera}>
+              <TabsTrigger value="upload">
                 <Upload className="mr-2 h-4 w-4" />
                 Carica File
               </TabsTrigger>
-              <TabsTrigger value="camera" onClick={startCamera}>
+              <TabsTrigger value="camera">
                 <Camera className="mr-2 h-4 w-4" />
                 Usa Fotocamera
               </TabsTrigger>
