@@ -56,21 +56,22 @@ serve(async (req) => {
     const rawText = ocrData.ParsedResults?.[0]?.ParsedText || '';
     console.log('Extracted text:', rawText);
 
-    // Now use Lovable AI to parse the OCR text into structured data
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    // Now use OpenAI GPT-5 to parse the OCR text into structured data
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY not configured');
     }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-5-2025-08-07',
+        max_completion_tokens: 1000,
         messages: [
           {
             role: 'system',
@@ -171,8 +172,8 @@ Correct Output:
 
     if (!aiResponse.ok) {
       const error = await aiResponse.text();
-      console.error('Lovable AI API error:', error);
-      throw new Error(`Lovable AI API error: ${aiResponse.status}`);
+      console.error('OpenAI API error:', error);
+      throw new Error(`OpenAI API error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
@@ -189,7 +190,7 @@ Correct Output:
       JSON.stringify({ 
         success: true, 
         data: extractedData,
-        confidence: 95 // OpenAI Vision is very reliable
+        confidence: 85 // GPT-5 with rule-based parsing is very reliable
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
