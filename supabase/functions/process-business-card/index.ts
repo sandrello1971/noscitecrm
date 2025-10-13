@@ -75,9 +75,58 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at parsing Italian business card OCR text into structured contact information.
+            content: `You are an expert at parsing Italian business card OCR text. You MUST follow these rules strictly.
 
-Extract contact details and return a JSON object with these EXACT fields:
+STEP 1: ANALYZE THE TEXT
+First, identify what each line represents by analyzing patterns:
+- ALL CAPS text with keywords (S.P.A, S.R.L, LTD) = Company name
+- Mixed case 2-3 words with first letters capitalized = Person name
+- Words like "Manager", "Direttore", "Gestore", "Responsabile" = Job position
+- Email addresses = email field
+- Numbers starting with +39 3XX = Mobile phone
+- Numbers starting with +39 0X = Landline phone
+
+STEP 2: APPLY EXTRACTION RULES
+
+🔍 REGEX PATTERNS:
+- Email: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}/
+- Mobile: +39 3XX XXXXXXX
+- Landline: +39 0X XXXXXXXX
+
+👤 PERSON NAME RULES (CRITICAL):
+✅ Person names are typically:
+  - 2-4 words
+  - First word capitalized (e.g., "Massimiliano")
+  - Last word capitalized (e.g., "Diotti")
+  - May have lowercase particles: "di", "da", "della", "de"
+  - NOT in all caps
+  - NOT containing company keywords
+
+❌ NOT person names:
+  - ALL CAPS = Company (e.g., "CREDIT AGRICOLE")
+  - Contains S.P.A, S.R.L, LTD, INC = Company
+  - Job titles = Position
+
+🏢 COMPANY NAME RULES:
+✅ Company indicators:
+  - ALL UPPERCASE (e.g., "CREDIT AGRICOLE")
+  - Contains: s.p.a, s.r.l, ltd, inc, gmbh, spa, srl
+  - More than 4 words
+  
+💼 POSITION RULES:
+✅ Job title indicators:
+  - Contains: Manager, Direttore, Gestore, Responsabile, CEO, Director, Consulente, Titolare
+  - Usually comes after the person name
+  - NOT a person name or company name
+
+EXTRACTION ORDER:
+1. Find email first (most reliable)
+2. Find phone numbers (mobile vs landline)
+3. Identify company (ALL CAPS or keywords)
+4. Identify position (job title keywords)
+5. Find person name (what's left that matches name pattern)
+
+Return ONLY this JSON (no markdown, no extra text):
 {
   "firstName": "",
   "lastName": "",
@@ -88,83 +137,37 @@ Extract contact details and return a JSON object with these EXACT fields:
   "mobile": ""
 }
 
-🔍 REGEX PATTERN MATCHING RULES:
-
-1. EMAIL: Use pattern /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}/
-   - Must be complete and lowercase
-   - Remove any spaces
-
-2. PHONE NUMBERS (Italian):
-   - Mobile (Cell): Usually starts with +39 3XX (e.g., +39 333, +39 340, +39 347)
-   - Landline (Tel): Usually starts with +39 0X (e.g., +39 02, +39 06, +39 011)
-   - Clean format, preserve country code
-
-3. WEBSITE: Only valid TLDs (.com, .it, .org, etc.)
-
-🏢 KEYWORD-BASED DETECTION:
-
-1. COMPANY indicators (if text contains these, it's a company name):
-   - ["s.p.a", "s.r.l", "ltd", "inc", "gmbh", "spa", "srl"]
-   - Text that is ALL UPPERCASE (e.g., "CRÉDIT AGRICOLE")
-
-2. POSITION indicators:
-   - ["CEO", "Manager", "Direttore", "Gestore", "Consulente", "Director", "Responsabile", "Titolare"]
-
-3. ADDRESS indicators (don't confuse with names):
-   - ["via", "viale", "piazza", "corso", "strada"]
-
-👤 ITALIAN NAME vs COMPANY LOGIC (CRITICAL):
-
-Person Name Rules:
-- 2-4 words total
-- First word CAPITALIZED (e.g., "Giuseppe")
-- Last word CAPITALIZED (e.g., "Costa")
-- Middle words can be lowercase (Italian particles: "di", "da", "della", "dalla", "de", "von")
-- Examples: "Giuseppe dalla Costa" ✅, "Maria De Luca" ✅
-
-Company Name Rules (these are NOT person names):
-- ALL UPPERCASE text → Company (e.g., "CRÉDIT AGRICOLE", "INRIDIA SRL")
-- Contains company keywords → Company
-- More than 4 words → Likely company
-
-PRIORITY ORDER for Name vs Company:
-1. If ALL UPPERCASE → Company
-2. If contains company keywords (s.p.a, s.r.l, etc.) → Company
-3. If First+Last word capitalized (2-4 words) → Person Name
-4. First significant line → Person Name (fallback)
-
-🎯 FIELD EXTRACTION PRIORITY:
-
-1. firstName + lastName: Apply person name rules above
-2. company: Apply company rules above  
-3. position: Look for position keywords
-4. email: Regex pattern matching
-5. phone: Landline pattern (+39 0X...)
-6. mobile: Mobile pattern (+39 3XX...)
-
-✅ OUTPUT RULES:
-- Return ONLY valid JSON - no markdown, no extra text
-- Capitalize first letter of firstName and lastName properly
-- Clean ALL fields from OCR artifacts (~, », ', line breaks, extra spaces)
-- If unsure, leave field as empty string ""
+FORMATTING RULES:
+- firstName/lastName: Capitalize first letter only
+- company: Keep original case but clean artifacts
+- email: Lowercase, no spaces
+- phone/mobile: +39 XX XXXXXXXX format
 
 EXAMPLE:
-Input OCR: "Giuseppe dalla Costa\\nINRIDIA S.R.L\\nConsulente Marketing\\ngiuseppe.dallacosta@inridia.it\\nTel: +39 02 1234567\\nCell: +39 333 9876543"
+OCR Text: "Massimiliano Diotti\\nCREDIT AGRICOLE S.P.A\\nGestore Clienti\\nmassimiliano.diotti@credit-agricole.it\\nTel: +39 02 48601625\\nCell: +39 337 1286177"
 
-Correct Output:
+ANALYSIS:
+- "Massimiliano Diotti" = Person name (2 words, capitalized)
+- "CREDIT AGRICOLE S.P.A" = Company (ALL CAPS + S.P.A)
+- "Gestore Clienti" = Position (job title keyword "Gestore")
+- "massimiliano.diotti@credit-agricole.it" = Email
+- "+39 02 48601625" = Landline (starts with 0X)
+- "+39 337 1286177" = Mobile (starts with 3XX)
+
+CORRECT OUTPUT:
 {
-  "firstName": "Giuseppe",
-  "lastName": "Dalla Costa",
-  "company": "Inridia S.R.L",
-  "position": "Consulente Marketing",
-  "email": "giuseppe.dallacosta@inridia.it",
-  "phone": "+39 02 1234567",
-  "mobile": "+39 333 9876543"
+  "firstName": "Massimiliano",
+  "lastName": "Diotti",
+  "company": "Credit Agricole S.P.A",
+  "position": "Gestore Clienti",
+  "email": "massimiliano.diotti@credit-agricole.it",
+  "phone": "+39 02 48601625",
+  "mobile": "+39 337 1286177"
 }`
           },
           {
             role: 'user',
-            content: `Extract structured contact information from this business card OCR text:\n\n${rawText}`
+            content: `Extract structured contact information from this Italian business card OCR text. Follow the analysis steps carefully:\n\n${rawText}`
           }
         ],
       }),
