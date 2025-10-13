@@ -19,7 +19,8 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY not configured');
     }
 
-    console.log('Processing business card with OpenAI Vision...');
+    console.log('Processing business card with OpenAI Vision API...');
+    console.log('Image size:', imageBase64.length, 'characters');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -32,30 +33,48 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at extracting contact information from business cards. You must be extremely accurate and careful.
+            content: `You are an OCR specialist extracting contact information from business card images.
 
-Extract ALL information from the business card and return it as a JSON object with these exact fields:
+Your task: Extract contact details and return a JSON object with these EXACT fields:
 {
-  "firstName": "person's first name (given name)",
-  "lastName": "person's last name (family name/surname)",
-  "company": "company or organization name",
-  "position": "job title or role",
-  "email": "email address in lowercase",
-  "phone": "landline/office phone number",
-  "mobile": "mobile/cell phone number"
+  "firstName": "",
+  "lastName": "",
+  "company": "",
+  "position": "",
+  "email": "",
+  "phone": "",
+  "mobile": ""
 }
 
-CRITICAL RULES:
-1. Return ONLY valid JSON, no markdown formatting or extra text
-2. If a field is not found or unclear, use an empty string ""
-3. For names: carefully distinguish first name from last name
-4. For phones: distinguish mobile (typically starts with 3 in Italy) from landline
-5. Keep full phone numbers including area codes and country codes if present
-6. Email must be lowercase and complete
-7. Be extremely careful with OCR - verify each character
-8. If text is unclear, leave that field empty rather than guessing
+EXTRACTION INSTRUCTIONS:
+1. firstName: Only the person's given/first name
+2. lastName: Only the person's family/surname
+3. company: The company/organization name (NOT the person's name)
+4. position: Job title/role (e.g., "CEO", "Manager", "Director")
+5. email: Complete email address in lowercase
+6. phone: Office/landline number with full country code (e.g., "+39 02 12345678")
+7. mobile: Mobile number with country code (in Italy usually starts with +39 3)
 
-Return ONLY the JSON object.`
+CRITICAL RULES:
+- Return ONLY the JSON object - no markdown, no extra text
+- If unsure about any field, leave it as empty string ""
+- Do NOT put company names in firstName or lastName fields
+- Do NOT confuse person names with company names
+- For Italian cards: mobile numbers usually start with 3 after country code
+- Preserve complete phone numbers including country codes
+- Email must be complete and lowercase
+- Read the card carefully - logos and company names are NOT person names
+
+Example of CORRECT output:
+{
+  "firstName": "Mario",
+  "lastName": "Rossi",
+  "company": "Acme Corporation",
+  "position": "Sales Director",
+  "email": "mario.rossi@acme.it",
+  "phone": "+39 02 12345678",
+  "mobile": "+39 333 1234567"
+}`
           },
           {
             role: 'user',
