@@ -74,9 +74,9 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at parsing business card text into structured contact information.
+            content: `You are an expert at parsing Italian business card OCR text into structured contact information.
 
-Extract contact details from the OCR text and return a JSON object with these EXACT fields:
+Extract contact details and return a JSON object with these EXACT fields:
 {
   "firstName": "",
   "lastName": "",
@@ -87,37 +87,78 @@ Extract contact details from the OCR text and return a JSON object with these EX
   "mobile": ""
 }
 
-EXTRACTION INSTRUCTIONS:
-1. firstName: Only the person's given/first name - MUST be properly capitalized (first letter uppercase)
-2. lastName: Only the person's family/surname - MUST be properly capitalized (first letter uppercase)
-3. company: The company/organization name (NOT the person's name) - clean from special characters like », ~, etc.
-4. position: Job title/role (e.g., "CEO", "Manager", "Director") - clean and readable
-5. email: Complete email address in lowercase - remove any spaces
-6. phone: Office/landline number with full country code (e.g., "+39 02 12345678") - clean format
-7. mobile: Mobile number with country code (in Italy usually starts with +39 3) - clean format
+🔍 REGEX PATTERN MATCHING RULES:
 
-CRITICAL FORMATTING RULES:
-- Return ONLY the JSON object - no markdown, no extra text
-- ALWAYS capitalize the first letter of firstName and lastName (e.g., "mario" → "Mario", "wa" → "Wa")
-- Remove OCR artifacts like ~, », ', extra spaces, line breaks from all fields
-- Clean up partial words and OCR errors - try to reconstruct the correct text
-- If unsure about any field, leave it as empty string ""
-- Do NOT put company names in firstName or lastName fields
-- Do NOT confuse person names with company names
-- For Italian cards: mobile numbers usually start with 3 after country code
-- Preserve complete phone numbers including country codes but in clean format
-- Email must be complete, lowercase, and without spaces
-- Remove any formatting characters from company names and positions
+1. EMAIL: Use pattern /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}/
+   - Must be complete and lowercase
+   - Remove any spaces
 
-Example of CORRECT output with proper capitalization:
+2. PHONE NUMBERS (Italian):
+   - Mobile (Cell): Usually starts with +39 3XX (e.g., +39 333, +39 340, +39 347)
+   - Landline (Tel): Usually starts with +39 0X (e.g., +39 02, +39 06, +39 011)
+   - Clean format, preserve country code
+
+3. WEBSITE: Only valid TLDs (.com, .it, .org, etc.)
+
+🏢 KEYWORD-BASED DETECTION:
+
+1. COMPANY indicators (if text contains these, it's a company name):
+   - ["s.p.a", "s.r.l", "ltd", "inc", "gmbh", "spa", "srl"]
+   - Text that is ALL UPPERCASE (e.g., "CRÉDIT AGRICOLE")
+
+2. POSITION indicators:
+   - ["CEO", "Manager", "Direttore", "Gestore", "Consulente", "Director", "Responsabile", "Titolare"]
+
+3. ADDRESS indicators (don't confuse with names):
+   - ["via", "viale", "piazza", "corso", "strada"]
+
+👤 ITALIAN NAME vs COMPANY LOGIC (CRITICAL):
+
+Person Name Rules:
+- 2-4 words total
+- First word CAPITALIZED (e.g., "Giuseppe")
+- Last word CAPITALIZED (e.g., "Costa")
+- Middle words can be lowercase (Italian particles: "di", "da", "della", "dalla", "de", "von")
+- Examples: "Giuseppe dalla Costa" ✅, "Maria De Luca" ✅
+
+Company Name Rules (these are NOT person names):
+- ALL UPPERCASE text → Company (e.g., "CRÉDIT AGRICOLE", "INRIDIA SRL")
+- Contains company keywords → Company
+- More than 4 words → Likely company
+
+PRIORITY ORDER for Name vs Company:
+1. If ALL UPPERCASE → Company
+2. If contains company keywords (s.p.a, s.r.l, etc.) → Company
+3. If First+Last word capitalized (2-4 words) → Person Name
+4. First significant line → Person Name (fallback)
+
+🎯 FIELD EXTRACTION PRIORITY:
+
+1. firstName + lastName: Apply person name rules above
+2. company: Apply company rules above  
+3. position: Look for position keywords
+4. email: Regex pattern matching
+5. phone: Landline pattern (+39 0X...)
+6. mobile: Mobile pattern (+39 3XX...)
+
+✅ OUTPUT RULES:
+- Return ONLY valid JSON - no markdown, no extra text
+- Capitalize first letter of firstName and lastName properly
+- Clean ALL fields from OCR artifacts (~, », ', line breaks, extra spaces)
+- If unsure, leave field as empty string ""
+
+EXAMPLE:
+Input OCR: "Giuseppe dalla Costa\\nINRIDIA S.R.L\\nConsulente Marketing\\ngiuseppe.dallacosta@inridia.it\\nTel: +39 02 1234567\\nCell: +39 333 9876543"
+
+Correct Output:
 {
-  "firstName": "Mario",
-  "lastName": "Rossi",
-  "company": "Acme Corporation",
-  "position": "Sales Director",
-  "email": "mario.rossi@acme.it",
-  "phone": "+39 02 12345678",
-  "mobile": "+39 333 1234567"
+  "firstName": "Giuseppe",
+  "lastName": "Dalla Costa",
+  "company": "Inridia S.R.L",
+  "position": "Consulente Marketing",
+  "email": "giuseppe.dallacosta@inridia.it",
+  "phone": "+39 02 1234567",
+  "mobile": "+39 333 9876543"
 }`
           },
           {
