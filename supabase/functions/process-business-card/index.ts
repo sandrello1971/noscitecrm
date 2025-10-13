@@ -13,29 +13,70 @@ serve(async (req) => {
 
   try {
     const { imageBase64 } = await req.json();
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const ocrSpaceApiKey = Deno.env.get('OCR_SPACE_API_KEY');
     
-    if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
+    if (!ocrSpaceApiKey) {
+      throw new Error('OCR_SPACE_API_KEY not configured');
     }
 
-    console.log('Processing business card with OpenAI Vision API...');
+    console.log('Processing business card with OCR.space API...');
     console.log('Image size:', imageBase64.length, 'characters');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call OCR.space API
+    const formData = new FormData();
+    formData.append('base64Image', imageBase64);
+    formData.append('language', 'ita');
+    formData.append('isOverlayRequired', 'false');
+    formData.append('detectOrientation', 'true');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '2'); // OCR Engine 2 is more accurate
+
+    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'apikey': ocrSpaceApiKey,
+      },
+      body: formData,
+    });
+
+    if (!ocrResponse.ok) {
+      const error = await ocrResponse.text();
+      console.error('OCR.space API error:', error);
+      throw new Error(`OCR.space API error: ${ocrResponse.status}`);
+    }
+
+    const ocrData = await ocrResponse.json();
+    
+    console.log('OCR.space response:', JSON.stringify(ocrData));
+
+    if (ocrData.IsErroredOnProcessing) {
+      throw new Error(ocrData.ErrorMessage?.[0] || 'OCR processing failed');
+    }
+
+    const rawText = ocrData.ParsedResults?.[0]?.ParsedText || '';
+    console.log('Extracted text:', rawText);
+
+    // Now use Lovable AI to parse the OCR text into structured data
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
+
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
-            content: `You are an OCR specialist extracting contact information from business card images.
+            content: `You are an expert at parsing business card text into structured contact information.
 
-Your task: Extract contact details and return a JSON object with these EXACT fields:
+Extract contact details from the OCR text and return a JSON object with these EXACT fields:
 {
   "firstName": "",
   "lastName": "",
@@ -78,36 +119,22 @@ Example of CORRECT output:
           },
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Please carefully extract all contact information from this business card image. Be precise and accurate.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageBase64,
-                  detail: 'high'
-                }
-              }
-            ]
+            content: `Extract structured contact information from this business card OCR text:\n\n${rawText}`
           }
         ],
-        max_tokens: 500,
-        temperature: 0
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenAI API error:', error);
-      throw new Error(`OpenAI API error: ${response.status}`);
+    if (!aiResponse.ok) {
+      const error = await aiResponse.text();
+      console.error('Lovable AI API error:', error);
+      throw new Error(`Lovable AI API error: ${aiResponse.status}`);
     }
 
-    const data = await response.json();
-    const content = data.choices[0].message.content;
+    const aiData = await aiResponse.json();
+    const content = aiData.choices[0].message.content;
     
-    console.log('Raw OpenAI response:', content);
+    console.log('Raw AI parsing response:', content);
     
     // Parse the JSON response
     const extractedData = JSON.parse(content);
