@@ -78,22 +78,29 @@ export function EditOpportunityDialog({
 
   useEffect(() => {
     if (open && opportunity) {
-      // Imposta i dati del form
-      setFormData({
-        title: opportunity.title || '',
-        description: opportunity.description || '',
-        company_id: opportunity.company_id || '',
-        win_probability: opportunity.win_probability?.toString() || '50',
-        status: opportunity.status || 'in_attesa',
-        notes: opportunity.notes || ''
-      })
-      setExpectedCloseDate(
-        opportunity.expected_close_date ? new Date(opportunity.expected_close_date) : undefined
-      )
+      // Carica prima companies e services, poi imposta i dati del form
+      const loadData = async () => {
+        await Promise.all([
+          loadCompanies(),
+          loadServices(),
+          loadOpportunityServices()
+        ])
+        
+        // Imposta i dati del form dopo aver caricato le aziende
+        setFormData({
+          title: opportunity.title || '',
+          description: opportunity.description || '',
+          company_id: opportunity.company_id || '',
+          win_probability: opportunity.win_probability?.toString() || '50',
+          status: opportunity.status || 'in_attesa',
+          notes: opportunity.notes || ''
+        })
+        setExpectedCloseDate(
+          opportunity.expected_close_date ? new Date(opportunity.expected_close_date) : undefined
+        )
+      }
       
-      loadCompanies()
-      loadServices()
-      loadOpportunityServices()
+      loadData()
     }
   }, [open, opportunity])
 
