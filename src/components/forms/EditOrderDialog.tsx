@@ -97,28 +97,35 @@ export function EditOrderDialog({
 
   useEffect(() => {
     if (open && order) {
-      // Imposta i dati del form
-      setFormData({
-        title: order.title || '',
-        description: order.description || '',
-        company_id: order.company_id || '',
-        parent_order_id: order.parent_order_id || '',
-        assigned_user_id: order.assigned_user_id || '',
-        status: order.status || 'draft',
-        priority: order.priority || 'medium',
-        estimated_hours: order.estimated_hours?.toString() || '',
-        actual_hours: order.actual_hours?.toString() || '',
-        progress_percentage: order.progress_percentage?.toString() || '0',
-        notes: order.notes || ''
-      })
+      // Carica prima companies, services e parent orders, poi imposta i dati del form
+      const loadData = async () => {
+        await Promise.all([
+          loadCompanies(),
+          loadServices(),
+          loadParentOrders(),
+          loadOrderServices()
+        ])
+        
+        // Imposta i dati del form dopo aver caricato i dati
+        setFormData({
+          title: order.title || '',
+          description: order.description || '',
+          company_id: order.company_id || '',
+          parent_order_id: order.parent_order_id || '',
+          assigned_user_id: order.assigned_user_id || '',
+          status: order.status || 'draft',
+          priority: order.priority || 'medium',
+          estimated_hours: order.estimated_hours?.toString() || '',
+          actual_hours: order.actual_hours?.toString() || '',
+          progress_percentage: order.progress_percentage?.toString() || '0',
+          notes: order.notes || ''
+        })
+        
+        setStartDate(order.start_date ? new Date(order.start_date) : undefined)
+        setEndDate(order.end_date ? new Date(order.end_date) : undefined)
+      }
       
-      setStartDate(order.start_date ? new Date(order.start_date) : undefined)
-      setEndDate(order.end_date ? new Date(order.end_date) : undefined)
-      
-      loadCompanies()
-      loadServices()
-      loadParentOrders()
-      loadOrderServices()
+      loadData()
     } else if (open) {
       // Se non c'è un order, inizializza con servizi vuoti
       setOrderServices([])
