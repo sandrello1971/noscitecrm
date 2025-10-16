@@ -69,7 +69,7 @@ export function EditCompanyDialog({ open, onOpenChange, company, onCompanyUpdate
         .update({
           name: formData.name,
           vat_number: formData.vat_number || null,
-          fiscal_code: formData.fiscal_code || null,
+          tax_code: formData.fiscal_code || null,
           email: formData.email || null,
           phone: formData.phone || null,
           website: formData.website || null,
@@ -78,7 +78,7 @@ export function EditCompanyDialog({ open, onOpenChange, company, onCompanyUpdate
           province: formData.province || null,
           postal_code: formData.postal_code || null,
           country: formData.country,
-          description: formData.description || null,
+          notes: formData.description || null,
           is_active: formData.is_active,
           is_partner: formData.is_partner,
         })
