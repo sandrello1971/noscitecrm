@@ -352,25 +352,23 @@ export default function Orders() {
     return <Badge variant={variant}>{label}</Badge>
   }
 
-  // Statistiche calcolate sui risultati filtrati
+  // Statistiche calcolate su TUTTI gli ordini (non filtrati)
   const stats = useMemo(() => {
-    const filtered = filteredAndSortedOrders
-    
     return {
-      total: filtered.length,
-      draft: filtered.filter(o => o.status === 'draft').length,
-      active: filtered.filter(o => o.status === 'active').length,
-      completed: filtered.filter(o => o.status === 'completed').length,
-      onHold: filtered.filter(o => o.status === 'on_hold').length,
-      cancelled: filtered.filter(o => o.status === 'cancelled').length,
-      totalValue: filtered.reduce((sum, o) => sum + (o.total_amount || 0), 0),
-      avgProgress: filtered.length > 0 
-        ? Math.round(filtered.reduce((sum, o) => sum + (o.progress_percentage || 0), 0) / filtered.length)
+      total: orders.length,
+      draft: orders.filter(o => o.status === 'draft').length,
+      active: orders.filter(o => o.status === 'active').length,
+      completed: orders.filter(o => o.status === 'completed').length,
+      onHold: orders.filter(o => o.status === 'on_hold').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      totalValue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
+      avgProgress: orders.length > 0 
+        ? Math.round(orders.reduce((sum, o) => sum + (o.progress_percentage || 0), 0) / orders.length)
         : 0,
-      totalHours: filtered.reduce((sum, o) => sum + (o.actual_hours || 0), 0),
-      estimatedHours: filtered.reduce((sum, o) => sum + (o.estimated_hours || 0), 0)
+      totalHours: orders.reduce((sum, o) => sum + (o.actual_hours || 0), 0),
+      estimatedHours: orders.reduce((sum, o) => sum + (o.estimated_hours || 0), 0)
     }
-  }, [filteredAndSortedOrders])
+  }, [orders])
 
   if (loading) {
     return <div className="p-6">Caricamento...</div>
