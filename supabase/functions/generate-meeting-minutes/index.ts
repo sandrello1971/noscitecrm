@@ -57,12 +57,13 @@ status: "Bozza"
 - {{VALUE:Decisione 2}}
 
 ## 🧠 Action Items
-\`\`\`markdown
+
+
 - [ ] Assegnato a {{VALUE:Responsabile 1}} – {{VALUE:Attività 1}} (scadenza {{DATE:YYYY-MM-DD}})
 - [ ] Assegnato a {{VALUE:Responsabile 2}} – {{VALUE:Attività 2}} (scadenza {{DATE:YYYY-MM-DD}})
-\`\`\`
 
 ## 📎 Allegati / Riferimenti
+
 - [[{{VALUE:Documento Collegato}}]]
 
 ISTRUZIONI:
