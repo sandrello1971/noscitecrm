@@ -17,6 +17,7 @@ import Orders from "@/pages/Orders"
 import Settings from "@/pages/Settings"
 import NotFound from "@/pages/NotFound"
 import FieraLeads from "@/pages/FieraLeads"
+import MeetingMinutes from "@/pages/MeetingMinutes"
 import BusinessCardScanner from "@/pages/BusinessCardScanner"
 import ScanHistory from "@/pages/ScanHistory"
 import OCRSettings from "@/pages/OCRSettings"
@@ -33,6 +34,7 @@ function App() {
               {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/fiera-leads" element={<FieraLeads />} />
+              <Route path="/meeting-minutes" element={<MeetingMinutes />} />
               
               {/* Scanner standalone webapp */}
               <Route path="/scanner" element={
