@@ -74,7 +74,7 @@ ISTRUZIONI:
 5. Se mancano informazioni, mantieni il placeholder con una descrizione generica
 6. Mantieni esattamente la struttura markdown con frontmatter YAML
 7. Restituisci SOLO il markdown formattato, senza commenti o spiegazioni aggiuntive
-8. NON usare code blocks (```) o wrapper markdown - restituisci il contenuto direttamente`;
+8. NON aggiungere code fence blocks o wrapper markdown - restituisci il contenuto direttamente`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
