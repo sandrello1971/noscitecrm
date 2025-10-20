@@ -34,43 +34,45 @@ serve(async (req) => {
 
 Il template da utilizzare è:
 ---
-titolo: "Riunione [DATA] - [Argomento]"
-data: [DATA in formato YYYY-MM-DD]
-partecipanti: ["Partecipante 1", "Partecipante 2"]
-cliente: [[Cliente]]
-progetto_ref: [[Progetto]]
+titolo: "Riunione {{DATE:YYYY-MM-DD}} - {{VALUE:Argomento}}"
+data: {{DATE:YYYY-MM-DD}}
+partecipanti: ["{{VALUE:Partecipante 1}}", "{{VALUE:Partecipante 2}}"]
+cliente: [[{{VALUE:Cliente}}]]
+progetto_ref: [[{{VALUE:Progetto}}]]
 tipo: "Meeting"
 tags: [meeting, minuta]
 status: "Bozza"
 ---
 
-# 🗓️ Riunione [DATA] - [Argomento]
+# 🗓️ Riunione {{DATE:YYYY-MM-DD}} - {{VALUE:Argomento}}
 
 ## 📋 Contesto
-[Descrizione breve del contesto della riunione]
+{{VALUE:Descrizione breve}}
 
 ## 🗣️ Sintesi discussione
-[Sintesi dei punti discussi]
+{{VALUE:Sintesi}}
 
 ## ✅ Decisioni
-- Decisione 1
-- Decisione 2
+- {{VALUE:Decisione 1}}
+- {{VALUE:Decisione 2}}
 
 ## 🧠 Action Items
-\`\`\`tasks
-- [ ] Assegnato a [Responsabile] – [Attività] (scadenza YYYY-MM-DD)
+\`\`\`markdown
+- [ ] Assegnato a {{VALUE:Responsabile 1}} – {{VALUE:Attività 1}} (scadenza {{DATE:YYYY-MM-DD}})
+- [ ] Assegnato a {{VALUE:Responsabile 2}} – {{VALUE:Attività 2}} (scadenza {{DATE:YYYY-MM-DD}})
 \`\`\`
 
 ## 📎 Allegati / Riferimenti
-- [[Documento Collegato]]
+- [[{{VALUE:Documento Collegato}}]]
 
 ISTRUZIONI:
 1. Estrai tutte le informazioni dagli appunti forniti
 2. Organizza il contenuto secondo le sezioni del template
-3. Usa la data odierna se non specificata
-4. Se mancano informazioni, usa placeholder descrittivi tra parentesi quadre
-5. Mantieni esattamente la struttura markdown con frontmatter YAML
-6. Restituisci SOLO il markdown formattato, senza commenti o spiegazioni aggiuntive`;
+3. Sostituisci i placeholder {{DATE:YYYY-MM-DD}} con date in formato YYYY-MM-DD (usa la data odierna se non specificata)
+4. Sostituisci i placeholder {{VALUE:...}} con i valori estratti dagli appunti
+5. Se mancano informazioni, mantieni il placeholder con una descrizione generica
+6. Mantieni esattamente la struttura markdown con frontmatter YAML
+7. Restituisci SOLO il markdown formattato, senza commenti o spiegazioni aggiuntive`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
