@@ -116,82 +116,12 @@ serve(async (req) => {
 
     console.log('Creating folder structure on OneDrive...');
 
-    // STEP 1: Ottieni o crea la cartella root "Clienti" usando il path invece dell'ID
-    console.log('Step 1: Checking/creating root "Clienti" folder...');
+    // Usa la cartella corretta: "10_clienti" (minuscolo)
+    console.log(`Creating company folder at: 10_clienti/${companyName}...`);
     
-    let clientiFolderId: string;
-    
-    // Prima prova a ottenere la cartella Clienti se esiste
-    const checkRootResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/root:/Clienti`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (checkRootResponse.ok) {
-      const rootFolder = await checkRootResponse.json();
-      clientiFolderId = rootFolder.id;
-      console.log('Root "Clienti" folder found:', clientiFolderId);
-    } else {
-      // La cartella non esiste, creiamola
-      console.log('Root "Clienti" folder not found, creating it...');
-      const createRootResponse = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/root/children`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: 'Clienti',
-            folder: {},
-            '@microsoft.graph.conflictBehavior': 'fail',
-          }),
-        }
-      );
-
-      if (!createRootResponse.ok) {
-        const error = await createRootResponse.json();
-        console.error('Failed to create root folder:', error);
-        
-        // Gestisci errori specifici
-        if (error.error?.code === 'nameAlreadyExists') {
-          // Se esiste già, riprova a recuperarla
-          const retryResponse = await fetch(
-            `https://graph.microsoft.com/v1.0/me/drive/root:/Clienti`,
-            {
-              method: 'GET',
-              headers: { 'Authorization': `Bearer ${accessToken}` },
-            }
-          );
-          if (retryResponse.ok) {
-            const folder = await retryResponse.json();
-            clientiFolderId = folder.id;
-          } else {
-            throw new Error('Impossibile accedere alla cartella Clienti su OneDrive');
-          }
-        } else if (error.error?.code === 'accessDenied') {
-          throw new Error('Accesso negato. Verifica i permessi OneDrive nelle impostazioni.');
-        } else {
-          throw new Error(`Errore creazione cartella root: ${error.error?.message || 'Errore sconosciuto'}`);
-        }
-      } else {
-        const rootFolder = await createRootResponse.json();
-        clientiFolderId = rootFolder.id;
-        console.log('Root "Clienti" folder created:', clientiFolderId);
-      }
-    }
-
-    // STEP 2: Crea la cartella del cliente dentro "Clienti"
-    console.log(`Step 2: Creating company folder "${companyName}" inside Clienti...`);
-    
-    const createCompanyFolderResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${clientiFolderId}/children`,
+    // Prova a creare direttamente la cartella company dentro 10_clienti
+    let createCompanyFolderResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/10_clienti:/children`,
       {
         method: 'POST',
         headers: {
@@ -201,20 +131,64 @@ serve(async (req) => {
         body: JSON.stringify({
           name: companyName,
           folder: {},
-          '@microsoft.graph.conflictBehavior': 'rename', // Se esiste già, crea con nome diverso
+          '@microsoft.graph.conflictBehavior': 'rename',
         }),
       }
     );
 
+    // Se "10_clienti" non esiste (404), creala prima
+    if (createCompanyFolderResponse.status === 404) {
+      console.log('"10_clienti" folder does not exist, creating it first...');
+      
+      const createClientiResponse = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/root/children`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: '10_clienti',
+            folder: {},
+            '@microsoft.graph.conflictBehavior': 'fail',
+          }),
+        }
+      );
+
+      if (!createClientiResponse.ok) {
+        const error = await createClientiResponse.json();
+        // Ignora se esiste già
+        if (error.error?.code !== 'nameAlreadyExists') {
+          console.error('Failed to create 10_clienti folder:', error);
+          throw new Error(`Errore creazione cartella 10_clienti: ${error.error?.message || 'Errore sconosciuto'}`);
+        }
+      }
+
+      console.log('"10_clienti" folder created/verified, now creating company folder...');
+      
+      // Riprova a creare la cartella company
+      createCompanyFolderResponse = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/root:/10_clienti:/children`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: companyName,
+            folder: {},
+            '@microsoft.graph.conflictBehavior': 'rename',
+          }),
+        }
+      );
+    }
+
     if (!createCompanyFolderResponse.ok) {
       const error = await createCompanyFolderResponse.json();
       console.error('Company folder creation failed:', error);
-      
-      if (error.error?.code === 'accessDenied') {
-        throw new Error('Accesso negato alla cartella Clienti. Verifica i permessi OneDrive.');
-      }
-      
-      throw new Error(`Errore creazione cartella cliente: ${error.error?.message || 'Errore sconosciuto'}`);
+      throw new Error(`Errore creazione cartella: ${error.error?.message || JSON.stringify(error.error)}`);
     }
 
     const companyFolder = await createCompanyFolderResponse.json();
