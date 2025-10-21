@@ -68,7 +68,7 @@ serve(async (req) => {
     if (tokenError || !tokenData) {
       console.error('Token error:', tokenError);
       return new Response(
-        JSON.stringify({ error: 'OneDrive not connected. Please connect OneDrive first.' }),
+        JSON.stringify({ error: 'OneDrive non connesso. Connetti OneDrive nelle impostazioni.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -81,7 +81,6 @@ serve(async (req) => {
     
     if (tokenExpired) {
       console.log('Token expired, refreshing...');
-      // Refresh token logic here
       const clientId = Deno.env.get('ONEDRIVE_CLIENT_ID');
       const clientSecret = Deno.env.get('ONEDRIVE_CLIENT_SECRET');
       const tenantId = Deno.env.get('ONEDRIVE_TENANT_ID');
@@ -111,19 +110,20 @@ serve(async (req) => {
         }).eq('user_id', user.id);
       } else {
         console.error('Token refresh failed:', newTokens);
-        throw new Error('Failed to refresh OneDrive token. Please reconnect your account.');
+        throw new Error('Token OneDrive scaduto. Riconnetti OneDrive nelle impostazioni.');
       }
     }
 
     console.log('Creating folder structure on OneDrive...');
 
-    // Extract the folder ID from the SharePoint URL
-    const baseFolderId = 'Eoz0gBgwpQtLocfJXCwyadsBR6AVHcMs6xIZbfU-piZpAQ';
-
-    // Step 1: Check if "Cliente" folder exists, or create it
-    console.log('Checking for Cliente folder...');
-    const checkClienteFolderResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${baseFolderId}/children?$filter=name eq 'Cliente' and folder ne null`,
+    // STEP 1: Ottieni o crea la cartella root "Clienti" usando il path invece dell'ID
+    console.log('Step 1: Checking/creating root "Clienti" folder...');
+    
+    let clientiFolderId: string;
+    
+    // Prima prova a ottenere la cartella Clienti se esiste
+    const checkRootResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/Clienti`,
       {
         method: 'GET',
         headers: {
@@ -132,18 +132,15 @@ serve(async (req) => {
       }
     );
 
-    const clienteFolderData = await checkClienteFolderResponse.json();
-    let clienteFolderId;
-
-    if (clienteFolderData.value && clienteFolderData.value.length > 0) {
-      // Cliente folder exists
-      clienteFolderId = clienteFolderData.value[0].id;
-      console.log('Cliente folder found:', clienteFolderId);
+    if (checkRootResponse.ok) {
+      const rootFolder = await checkRootResponse.json();
+      clientiFolderId = rootFolder.id;
+      console.log('Root "Clienti" folder found:', clientiFolderId);
     } else {
-      // Create Cliente folder
-      console.log('Creating Cliente folder...');
-      const createClienteFolderResponse = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/items/${baseFolderId}/children`,
+      // La cartella non esiste, creiamola
+      console.log('Root "Clienti" folder not found, creating it...');
+      const createRootResponse = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/root/children`,
         {
           method: 'POST',
           headers: {
@@ -151,26 +148,50 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            name: 'Cliente',
+            name: 'Clienti',
             folder: {},
             '@microsoft.graph.conflictBehavior': 'fail',
           }),
         }
       );
 
-      const clienteFolder = await createClienteFolderResponse.json();
-      if (!createClienteFolderResponse.ok) {
-        console.error('Cliente folder creation failed:', clienteFolder);
-        throw new Error(`Failed to create Cliente folder: ${clienteFolder.error?.message || JSON.stringify(clienteFolder)}`);
+      if (!createRootResponse.ok) {
+        const error = await createRootResponse.json();
+        console.error('Failed to create root folder:', error);
+        
+        // Gestisci errori specifici
+        if (error.error?.code === 'nameAlreadyExists') {
+          // Se esiste già, riprova a recuperarla
+          const retryResponse = await fetch(
+            `https://graph.microsoft.com/v1.0/me/drive/root:/Clienti`,
+            {
+              method: 'GET',
+              headers: { 'Authorization': `Bearer ${accessToken}` },
+            }
+          );
+          if (retryResponse.ok) {
+            const folder = await retryResponse.json();
+            clientiFolderId = folder.id;
+          } else {
+            throw new Error('Impossibile accedere alla cartella Clienti su OneDrive');
+          }
+        } else if (error.error?.code === 'accessDenied') {
+          throw new Error('Accesso negato. Verifica i permessi OneDrive nelle impostazioni.');
+        } else {
+          throw new Error(`Errore creazione cartella root: ${error.error?.message || 'Errore sconosciuto'}`);
+        }
+      } else {
+        const rootFolder = await createRootResponse.json();
+        clientiFolderId = rootFolder.id;
+        console.log('Root "Clienti" folder created:', clientiFolderId);
       }
-      clienteFolderId = clienteFolder.id;
-      console.log('Cliente folder created:', clienteFolderId);
     }
 
-    // Step 2: Create company folder inside Cliente folder
-    console.log('Creating company folder inside Cliente...');
-    const createFolderResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${clienteFolderId}/children`,
+    // STEP 2: Crea la cartella del cliente dentro "Clienti"
+    console.log(`Step 2: Creating company folder "${companyName}" inside Clienti...`);
+    
+    const createCompanyFolderResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${clientiFolderId}/children`,
       {
         method: 'POST',
         headers: {
@@ -180,24 +201,36 @@ serve(async (req) => {
         body: JSON.stringify({
           name: companyName,
           folder: {},
-          '@microsoft.graph.conflictBehavior': 'rename',
+          '@microsoft.graph.conflictBehavior': 'rename', // Se esiste già, crea con nome diverso
         }),
       }
     );
 
-    const folder = await createFolderResponse.json();
-    console.log('Company folder creation response:', { ok: createFolderResponse.ok, folder });
-
-    if (!createFolderResponse.ok) {
-      console.error('Company folder creation failed:', folder);
-      throw new Error(`Failed to create company folder: ${folder.error?.message || JSON.stringify(folder)}`);
+    if (!createCompanyFolderResponse.ok) {
+      const error = await createCompanyFolderResponse.json();
+      console.error('Company folder creation failed:', error);
+      
+      if (error.error?.code === 'accessDenied') {
+        throw new Error('Accesso negato alla cartella Clienti. Verifica i permessi OneDrive.');
+      }
+      
+      throw new Error(`Errore creazione cartella cliente: ${error.error?.message || 'Errore sconosciuto'}`);
     }
 
-    // Create README.md file in the new folder
+    const companyFolder = await createCompanyFolderResponse.json();
+    console.log('Company folder created successfully:', { 
+      id: companyFolder.id, 
+      name: companyFolder.name,
+      webUrl: companyFolder.webUrl 
+    });
+
+    // STEP 3: Crea il file README.md nella cartella del cliente
+    console.log('Step 3: Creating README.md file...');
+    
     const readmeBlob = new TextEncoder().encode(readmeContent);
     
-    const createFileResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}:/README.md:/content`,
+    const createReadmeResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${companyFolder.id}:/README.md:/content`,
       {
         method: 'PUT',
         headers: {
@@ -208,21 +241,25 @@ serve(async (req) => {
       }
     );
 
-    const file = await createFileResponse.json();
-    console.log('README creation response:', { ok: createFileResponse.ok, file });
-
-    if (!createFileResponse.ok) {
-      console.error('README creation failed:', file);
-      throw new Error(`Failed to create README: ${file.error?.message || JSON.stringify(file)}`);
+    if (!createReadmeResponse.ok) {
+      const error = await createReadmeResponse.json();
+      console.error('README creation failed:', error);
+      
+      // Non blocchiamo se il README fallisce, ma logghiamo
+      console.warn('README creation failed, but folder was created successfully');
+    } else {
+      const readmeFile = await createReadmeResponse.json();
+      console.log('README.md created successfully:', readmeFile.name);
     }
 
-    console.log('Folder and README created successfully');
+    console.log('OneDrive folder structure created successfully!');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        folderUrl: folder.webUrl,
-        message: 'Cartella e README creati su OneDrive!'
+        folderUrl: companyFolder.webUrl,
+        folderName: companyFolder.name,
+        message: `Cartella "${companyFolder.name}" creata su OneDrive!`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
@@ -230,7 +267,9 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in onedrive-create-folder:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Errore sconosciuto durante la creazione della cartella'
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
