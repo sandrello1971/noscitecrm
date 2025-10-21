@@ -12,11 +12,10 @@ serve(async (req) => {
 
   try {
     const clientId = Deno.env.get('ONEDRIVE_CLIENT_ID');
-    const tenantId = Deno.env.get('ONEDRIVE_TENANT_ID');
     const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-callback`;
 
-    // Generate authorization URL
-    const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
+    // Use 'organizations' for multi-tenant apps instead of specific tenant ID
+    const authUrl = `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?` +
       `client_id=${clientId}` +
       `&response_type=code` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
