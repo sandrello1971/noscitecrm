@@ -20,7 +20,7 @@ serve(async (req) => {
       `client_id=${clientId}` +
       `&response_type=code` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${encodeURIComponent('https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/offline_access')}` +
+      `&scope=${encodeURIComponent('Files.ReadWrite offline_access User.Read')}` +
       `&response_mode=query`;
 
     console.log('Generated auth URL:', authUrl);
