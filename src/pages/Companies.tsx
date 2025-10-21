@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Building2, Edit, Trash2, Mail, Phone, Globe, Plus, Search, X, Users, Briefcase, TrendingUp, Download } from "lucide-react"
+import { Building2, Edit, Trash2, Mail, Phone, Globe, Plus, Search, X, Users, Briefcase, TrendingUp, Download, Cloud } from "lucide-react"
 import * as XLSX from 'xlsx'
 import { AddCompanyDialog } from "@/components/forms/AddCompanyDialog"
 import { EditCompanyDialog } from "@/components/forms/EditCompanyDialog"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
+import readmeTemplate from "@/assets/Cliente_README.md?raw"
 
 interface Company {
   id: string
@@ -48,6 +49,7 @@ export default function Companies() {
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("name")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [creatingOneDrive, setCreatingOneDrive] = useState<string | null>(null)
   
   const { toast } = useToast()
   const { isAdmin } = useAuth()
@@ -298,6 +300,48 @@ export default function Companies() {
     })
   }
 
+  const handleCreateOneDriveFolder = async (company: Company) => {
+    setCreatingOneDrive(company.id)
+    try {
+      // Prepara il README con il nome dell'azienda
+      const readmeContent = readmeTemplate.replace(/<% tp\.file\.folder\(true\)\.split\('\/'\)\.pop\(\) %>/g, company.name)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error('Non autenticato')
+      }
+
+      const response = await supabase.functions.invoke('onedrive-create-folder', {
+        body: {
+          companyName: company.name,
+          readmeContent
+        }
+      })
+
+      if (response.error) throw response.error
+
+      toast({
+        title: "Cartella creata su OneDrive!",
+        description: `Cartella "${company.name}" e README.md creati con successo.`,
+      })
+
+      // Se c'è un URL della cartella, lo mostriamo
+      if (response.data?.folderUrl) {
+        window.open(response.data.folderUrl, '_blank')
+      }
+
+    } catch (error: any) {
+      console.error('Error creating OneDrive folder:', error)
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile creare la cartella su OneDrive. Assicurati di aver connesso OneDrive nelle impostazioni.",
+        variant: "destructive"
+      })
+    } finally {
+      setCreatingOneDrive(null)
+    }
+  }
+
   // Statistiche calcolate sui risultati filtrati
   const stats = useMemo(() => {
     const filtered = filteredAndSortedCompanies
@@ -532,6 +576,15 @@ export default function Companies() {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCreateOneDriveFolder(company)}
+                      disabled={creatingOneDrive === company.id}
+                      title="Crea cartella su OneDrive"
+                    >
+                      <Cloud className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

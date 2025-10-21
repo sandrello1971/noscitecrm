@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.generate-meeting-minutes]
 verify_jwt = false
+
+[functions.onedrive-auth]
+verify_jwt = true
+
+[functions.onedrive-callback]
+verify_jwt = false
+
+[functions.onedrive-create-folder]
+verify_jwt = true

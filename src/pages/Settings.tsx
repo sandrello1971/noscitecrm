@@ -325,6 +325,50 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Integrazione OneDrive
+              </CardTitle>
+              <CardDescription>
+                Connetti il tuo account Microsoft OneDrive per creare cartelle clienti
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Per abilitare la creazione automatica di cartelle clienti su OneDrive, è necessario:
+                </p>
+                <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                  <li>Effettuare il login con il tuo account Microsoft</li>
+                  <li>Autorizzare l'accesso ai file OneDrive</li>
+                  <li>Utilizzare il pulsante Cloud nelle card azienda</li>
+                </ol>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase.functions.invoke('onedrive-auth')
+                      if (error) throw error
+                      if (data?.authUrl) {
+                        window.location.href = data.authUrl
+                      }
+                    } catch (error: any) {
+                      toast({
+                        title: "Errore",
+                        description: error.message || "Impossibile avviare l'autenticazione OneDrive",
+                        variant: "destructive"
+                      })
+                    }
+                  }}
+                  className="w-full"
+                >
+                  Connetti OneDrive
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="appearance" className="space-y-4">

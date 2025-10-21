@@ -677,7 +677,7 @@ export type Database = {
           id: string
           image_url: string
           ocr_confidence: number | null
-          original_file_name: string
+          original_file_name: string | null
           status: string
           updated_at: string
           user_id: string
@@ -691,7 +691,7 @@ export type Database = {
           id?: string
           image_url: string
           ocr_confidence?: number | null
-          original_file_name: string
+          original_file_name?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -705,7 +705,7 @@ export type Database = {
           id?: string
           image_url?: string
           ocr_confidence?: number | null
-          original_file_name?: string
+          original_file_name?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -2008,6 +2008,36 @@ export type Database = {
           id?: string
           preferred_language?: string
           quality_threshold?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      onedrive_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          refresh_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string
           updated_at?: string
           user_id?: string
         }
