@@ -116,12 +116,12 @@ serve(async (req) => {
 
     console.log('Creating folder structure on OneDrive...');
 
-    // Usa la cartella corretta: "10_clienti" (minuscolo)
-    console.log(`Creating company folder at: 10_clienti/${companyName}...`);
+    // Usa il percorso completo: "Noscite_Vault_Pro/10_clienti"
+    console.log(`Creating company folder at: Noscite_Vault_Pro/10_clienti/${companyName}...`);
     
-    // Prova a creare direttamente la cartella company dentro 10_clienti
+    // Prova a creare direttamente la cartella company dentro Noscite_Vault_Pro/10_clienti
     let createCompanyFolderResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/root:/10_clienti:/children`,
+      `https://graph.microsoft.com/v1.0/me/drive/root:/Noscite_Vault_Pro/10_clienti:/children`,
       {
         method: 'POST',
         headers: {
@@ -136,12 +136,51 @@ serve(async (req) => {
       }
     );
 
-    // Se "10_clienti" non esiste (404), creala prima
+    // Se il percorso non esiste (404), crea la struttura
     if (createCompanyFolderResponse.status === 404) {
-      console.log('"10_clienti" folder does not exist, creating it first...');
+      console.log('Path "Noscite_Vault_Pro/10_clienti" does not exist, creating folder structure...');
       
+      // Prima verifica/crea Noscite_Vault_Pro
+      let vaultFolderResponse = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/root:/Noscite_Vault_Pro`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!vaultFolderResponse.ok) {
+        console.log('Creating Noscite_Vault_Pro folder...');
+        const createVaultResponse = await fetch(
+          `https://graph.microsoft.com/v1.0/me/drive/root/children`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: 'Noscite_Vault_Pro',
+              folder: {},
+              '@microsoft.graph.conflictBehavior': 'fail',
+            }),
+          }
+        );
+
+        if (!createVaultResponse.ok) {
+          const error = await createVaultResponse.json();
+          if (error.error?.code !== 'nameAlreadyExists') {
+            throw new Error(`Errore creazione cartella Noscite_Vault_Pro: ${error.error?.message || 'Errore sconosciuto'}`);
+          }
+        }
+      }
+
+      // Poi verifica/crea 10_clienti dentro Noscite_Vault_Pro
+      console.log('Creating 10_clienti folder...');
       const createClientiResponse = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/root/children`,
+        `https://graph.microsoft.com/v1.0/me/drive/root:/Noscite_Vault_Pro:/children`,
         {
           method: 'POST',
           headers: {
@@ -158,18 +197,16 @@ serve(async (req) => {
 
       if (!createClientiResponse.ok) {
         const error = await createClientiResponse.json();
-        // Ignora se esiste già
         if (error.error?.code !== 'nameAlreadyExists') {
-          console.error('Failed to create 10_clienti folder:', error);
           throw new Error(`Errore creazione cartella 10_clienti: ${error.error?.message || 'Errore sconosciuto'}`);
         }
       }
 
-      console.log('"10_clienti" folder created/verified, now creating company folder...');
+      console.log('Folder structure created/verified, now creating company folder...');
       
       // Riprova a creare la cartella company
       createCompanyFolderResponse = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/root:/10_clienti:/children`,
+        `https://graph.microsoft.com/v1.0/me/drive/root:/Noscite_Vault_Pro/10_clienti:/children`,
         {
           method: 'POST',
           headers: {
