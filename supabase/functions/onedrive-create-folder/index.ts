@@ -115,15 +115,62 @@ serve(async (req) => {
       }
     }
 
-    console.log('Creating folder on OneDrive...');
+    console.log('Creating folder structure on OneDrive...');
 
     // Extract the folder ID from the SharePoint URL
-    // URL: https://noscite-my.sharepoint.com/:f:/g/personal/stefanoandrello_noscite_onmicrosoft_com/Eoz0gBgwpQtLocfJXCwyadsBR6AVHcMs6xIZbfU-piZpAQ?e=ninruZ
-    const folderId = 'Eoz0gBgwpQtLocfJXCwyadsBR6AVHcMs6xIZbfU-piZpAQ';
+    const baseFolderId = 'Eoz0gBgwpQtLocfJXCwyadsBR6AVHcMs6xIZbfU-piZpAQ';
 
-    // Create folder
+    // Step 1: Check if "Cliente" folder exists, or create it
+    console.log('Checking for Cliente folder...');
+    const checkClienteFolderResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${baseFolderId}/children?$filter=name eq 'Cliente' and folder ne null`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const clienteFolderData = await checkClienteFolderResponse.json();
+    let clienteFolderId;
+
+    if (clienteFolderData.value && clienteFolderData.value.length > 0) {
+      // Cliente folder exists
+      clienteFolderId = clienteFolderData.value[0].id;
+      console.log('Cliente folder found:', clienteFolderId);
+    } else {
+      // Create Cliente folder
+      console.log('Creating Cliente folder...');
+      const createClienteFolderResponse = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${baseFolderId}/children`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: 'Cliente',
+            folder: {},
+            '@microsoft.graph.conflictBehavior': 'fail',
+          }),
+        }
+      );
+
+      const clienteFolder = await createClienteFolderResponse.json();
+      if (!createClienteFolderResponse.ok) {
+        console.error('Cliente folder creation failed:', clienteFolder);
+        throw new Error(`Failed to create Cliente folder: ${clienteFolder.error?.message || JSON.stringify(clienteFolder)}`);
+      }
+      clienteFolderId = clienteFolder.id;
+      console.log('Cliente folder created:', clienteFolderId);
+    }
+
+    // Step 2: Create company folder inside Cliente folder
+    console.log('Creating company folder inside Cliente...');
     const createFolderResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`,
+      `https://graph.microsoft.com/v1.0/me/drive/items/${clienteFolderId}/children`,
       {
         method: 'POST',
         headers: {
@@ -139,11 +186,11 @@ serve(async (req) => {
     );
 
     const folder = await createFolderResponse.json();
-    console.log('Folder creation response:', { ok: createFolderResponse.ok, folder });
+    console.log('Company folder creation response:', { ok: createFolderResponse.ok, folder });
 
     if (!createFolderResponse.ok) {
-      console.error('Folder creation failed:', folder);
-      throw new Error(`Failed to create folder: ${folder.error?.message || JSON.stringify(folder)}`);
+      console.error('Company folder creation failed:', folder);
+      throw new Error(`Failed to create company folder: ${folder.error?.message || JSON.stringify(folder)}`);
     }
 
     // Create README.md file in the new folder
