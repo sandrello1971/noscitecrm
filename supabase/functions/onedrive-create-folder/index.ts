@@ -12,7 +12,10 @@ serve(async (req) => {
   }
 
   try {
+    console.log('OneDrive create folder request received');
+    
     const { companyName, readmeContent } = await req.json();
+    console.log('Request data:', { companyName, readmeContentLength: readmeContent?.length });
 
     if (!companyName || !readmeContent) {
       return new Response(
@@ -56,7 +59,14 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
+    console.log('Token data retrieved:', { 
+      hasTokenData: !!tokenData, 
+      tokenError: tokenError?.message,
+      expiresAt: tokenData?.expires_at 
+    });
+
     if (tokenError || !tokenData) {
+      console.error('Token error:', tokenError);
       return new Response(
         JSON.stringify({ error: 'OneDrive not connected. Please connect OneDrive first.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -65,7 +75,12 @@ serve(async (req) => {
 
     // Check if token is expired and refresh if needed
     let accessToken = tokenData.access_token;
-    if (new Date(tokenData.expires_at) < new Date()) {
+    const tokenExpired = new Date(tokenData.expires_at) < new Date();
+    
+    console.log('Token status:', { tokenExpired });
+    
+    if (tokenExpired) {
+      console.log('Token expired, refreshing...');
       // Refresh token logic here
       const clientId = Deno.env.get('ONEDRIVE_CLIENT_ID');
       const clientSecret = Deno.env.get('ONEDRIVE_CLIENT_SECRET');
@@ -87,14 +102,20 @@ serve(async (req) => {
 
       const newTokens = await refreshResponse.json();
       if (refreshResponse.ok) {
+        console.log('Token refreshed successfully');
         accessToken = newTokens.access_token;
         
         await supabaseAdmin.from('onedrive_tokens').update({
           access_token: newTokens.access_token,
           expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
         }).eq('user_id', user.id);
+      } else {
+        console.error('Token refresh failed:', newTokens);
+        throw new Error('Failed to refresh OneDrive token. Please reconnect your account.');
       }
     }
+
+    console.log('Creating folder on OneDrive...');
 
     // Extract the folder ID from the SharePoint URL
     // URL: https://noscite-my.sharepoint.com/:f:/g/personal/stefanoandrello_noscite_onmicrosoft_com/Eoz0gBgwpQtLocfJXCwyadsBR6AVHcMs6xIZbfU-piZpAQ?e=ninruZ
@@ -118,10 +139,11 @@ serve(async (req) => {
     );
 
     const folder = await createFolderResponse.json();
-    console.log('Folder created:', folder);
+    console.log('Folder creation response:', { ok: createFolderResponse.ok, folder });
 
     if (!createFolderResponse.ok) {
-      throw new Error(`Failed to create folder: ${JSON.stringify(folder)}`);
+      console.error('Folder creation failed:', folder);
+      throw new Error(`Failed to create folder: ${folder.error?.message || JSON.stringify(folder)}`);
     }
 
     // Create README.md file in the new folder
@@ -140,11 +162,14 @@ serve(async (req) => {
     );
 
     const file = await createFileResponse.json();
-    console.log('README created:', file);
+    console.log('README creation response:', { ok: createFileResponse.ok, file });
 
     if (!createFileResponse.ok) {
-      throw new Error(`Failed to create README: ${JSON.stringify(file)}`);
+      console.error('README creation failed:', file);
+      throw new Error(`Failed to create README: ${file.error?.message || JSON.stringify(file)}`);
     }
+
+    console.log('Folder and README created successfully');
 
     return new Response(
       JSON.stringify({ 
