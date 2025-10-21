@@ -20,7 +20,7 @@ serve(async (req) => {
       `client_id=${clientId}` +
       `&response_type=code` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${encodeURIComponent('Files.ReadWrite.All offline_access User.Read')}` +
+      `&scope=${encodeURIComponent('Files.ReadWrite offline_access User.Read')}` +
       `&response_mode=query`;
 
     console.log('Generated auth URL:', authUrl);
