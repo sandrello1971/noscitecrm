@@ -11,10 +11,12 @@ serve(async (req) => {
     const error = url.searchParams.get('error');
     const errorDescription = url.searchParams.get('error_description');
 
+    // URL del frontend - usa SOLO crm.noscite.it
+    const frontendUrl = 'https://crm.noscite.it';
+
     // Gestisci errori OAuth
     if (error) {
       console.error('OAuth error:', { error, errorDescription });
-      const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
       return new Response(null, {
         status: 302,
         headers: {
@@ -25,7 +27,6 @@ serve(async (req) => {
 
     if (!code) {
       console.error('Missing authorization code');
-      const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
       return new Response(null, {
         status: 302,
         headers: {
@@ -36,7 +37,6 @@ serve(async (req) => {
 
     if (!state) {
       console.error('Missing state parameter');
-      const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
       return new Response(null, {
         status: 302,
         headers: {
@@ -54,7 +54,6 @@ serve(async (req) => {
 
     if (!clientId || !clientSecret || !tenantId) {
       console.error('Missing OneDrive configuration');
-      const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
       return new Response(null, {
         status: 302,
         headers: {
@@ -84,7 +83,6 @@ serve(async (req) => {
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', tokens);
-      const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
       const errorMsg = tokens.error_description || tokens.error || 'Token exchange failed';
       return new Response(null, {
         status: 302,
@@ -117,7 +115,6 @@ serve(async (req) => {
 
     if (upsertError) {
       console.error('Failed to store tokens:', upsertError);
-      const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
       return new Response(null, {
         status: 302,
         headers: {
@@ -126,11 +123,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Tokens stored successfully');
-
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
-    
-    console.log('Redirecting to:', frontendUrl);
+    console.log('Tokens stored successfully, redirecting to:', frontendUrl);
 
     return new Response(null, {
       status: 302,
@@ -140,7 +133,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in onedrive-callback:', error);
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
+    const frontendUrl = 'https://crm.noscite.it';
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     return new Response(null, {
       status: 302,
@@ -149,6 +142,7 @@ serve(async (req) => {
       },
     });
   }
+});
 });
 ```
 
