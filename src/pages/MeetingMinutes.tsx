@@ -140,11 +140,12 @@ const MeetingMinutes = () => {
             <CardContent className="space-y-4">
               {generatedMinutes ? (
                 <>
-                  <div className="border rounded-md p-4 bg-muted/50 min-h-[400px] max-h-[400px] overflow-y-auto">
-                    <pre className="whitespace-pre-wrap font-mono text-sm">
-                      {generatedMinutes}
-                    </pre>
-                  </div>
+                  <Textarea
+                    value={generatedMinutes}
+                    onChange={(e) => setGeneratedMinutes(e.target.value)}
+                    className="min-h-[400px] font-mono text-sm"
+                    placeholder="La minuta generata apparirà qui e potrai modificarla prima di scaricarla"
+                  />
                   <Button onClick={handleDownload} className="w-full">
                     <Download className="mr-2 h-4 w-4" />
                     Scarica Minuta (.md)
