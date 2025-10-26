@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Car, Download, Plus, Trash2, Calendar } from 'lucide-react';
+import { Car, Download, Plus, Trash2, Calendar, Pencil, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -18,6 +18,7 @@ interface TravelExpense {
   departure_location: string;
   arrival_location: string;
   distance_km: number;
+  reimbursement_rate_per_km: number;
   travel_date: string;
   notes?: string;
 }
@@ -26,6 +27,7 @@ const TravelExpenses = () => {
   const [expenses, setExpenses] = useState<TravelExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Form state
@@ -33,6 +35,7 @@ const TravelExpenses = () => {
   const [departureLocation, setDepartureLocation] = useState('');
   const [arrivalLocation, setArrivalLocation] = useState('');
   const [distanceKm, setDistanceKm] = useState('');
+  const [reimbursementRate, setReimbursementRate] = useState('0.50');
   const [travelDate, setTravelDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [notes, setNotes] = useState('');
 
@@ -65,6 +68,17 @@ const TravelExpenses = () => {
     fetchExpenses();
   }, [selectedMonth]);
 
+  const resetForm = () => {
+    setMissionDescription('');
+    setDepartureLocation('');
+    setArrivalLocation('');
+    setDistanceKm('');
+    setReimbursementRate('0.50');
+    setNotes('');
+    setTravelDate(format(new Date(), 'yyyy-MM-dd'));
+    setEditingId(null);
+  };
+
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -81,31 +95,49 @@ const TravelExpenses = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utente non autenticato');
 
-      const { error } = await supabase.from('travel_expenses').insert({
-        user_id: user.id,
-        mission_description: missionDescription,
-        departure_location: departureLocation,
-        arrival_location: arrivalLocation,
-        distance_km: parseFloat(distanceKm),
-        travel_date: travelDate,
-        notes: notes || null,
-      });
+      if (editingId) {
+        // Update existing expense
+        const { error } = await supabase
+          .from('travel_expenses')
+          .update({
+            mission_description: missionDescription,
+            departure_location: departureLocation,
+            arrival_location: arrivalLocation,
+            distance_km: parseFloat(distanceKm),
+            reimbursement_rate_per_km: parseFloat(reimbursementRate),
+            travel_date: travelDate,
+            notes: notes || null,
+          })
+          .eq('id', editingId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Successo",
-        description: "Spesa di viaggio aggiunta",
-      });
+        toast({
+          title: "Aggiornato",
+          description: "Spesa modificata con successo",
+        });
+      } else {
+        // Create new expense
+        const { error } = await supabase.from('travel_expenses').insert({
+          user_id: user.id,
+          mission_description: missionDescription,
+          departure_location: departureLocation,
+          arrival_location: arrivalLocation,
+          distance_km: parseFloat(distanceKm),
+          reimbursement_rate_per_km: parseFloat(reimbursementRate),
+          travel_date: travelDate,
+          notes: notes || null,
+        });
 
-      // Reset form
-      setMissionDescription('');
-      setDepartureLocation('');
-      setArrivalLocation('');
-      setDistanceKm('');
-      setNotes('');
-      setTravelDate(format(new Date(), 'yyyy-MM-dd'));
+        if (error) throw error;
 
+        toast({
+          title: "Successo",
+          description: "Spesa di viaggio aggiunta",
+        });
+      }
+
+      resetForm();
       fetchExpenses();
     } catch (error: any) {
       toast({
@@ -116,7 +148,20 @@ const TravelExpenses = () => {
     }
   };
 
+  const handleEditExpense = (expense: TravelExpense) => {
+    setEditingId(expense.id);
+    setMissionDescription(expense.mission_description);
+    setDepartureLocation(expense.departure_location);
+    setArrivalLocation(expense.arrival_location);
+    setDistanceKm(expense.distance_km.toString());
+    setReimbursementRate(expense.reimbursement_rate_per_km.toString());
+    setTravelDate(expense.travel_date);
+    setNotes(expense.notes || '');
+  };
+
   const handleDeleteExpense = async (id: string) => {
+    if (!confirm('Sei sicuro di voler eliminare questa spesa?')) return;
+
     try {
       const { error } = await supabase.from('travel_expenses').delete().eq('id', id);
       if (error) throw error;
@@ -125,6 +170,11 @@ const TravelExpenses = () => {
         title: "Eliminato",
         description: "Spesa eliminata con successo",
       });
+      
+      if (editingId === id) {
+        resetForm();
+      }
+      
       fetchExpenses();
     } catch (error: any) {
       toast({
@@ -151,8 +201,22 @@ const TravelExpenses = () => {
       Partenza: expense.departure_location,
       Arrivo: expense.arrival_location,
       'KM Percorsi': expense.distance_km,
+      'Tariffa €/km': expense.reimbursement_rate_per_km,
+      'Totale €': (expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2),
       Note: expense.notes || '',
     }));
+
+    // Add total row
+    exportData.push({
+      Data: '',
+      Missione: '',
+      Partenza: '',
+      Arrivo: 'TOTALE',
+      'KM Percorsi': parseFloat(totalKm.toFixed(1)),
+      'Tariffa €/km': '' as any,
+      'Totale €': totalAmount.toFixed(2),
+      Note: '',
+    });
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -168,6 +232,7 @@ const TravelExpenses = () => {
   };
 
   const totalKm = expenses.reduce((sum, exp) => sum + exp.distance_km, 0);
+  const totalAmount = expenses.reduce((sum, exp) => sum + (exp.distance_km * exp.reimbursement_rate_per_km), 0);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -181,11 +246,13 @@ const TravelExpenses = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {/* Form per aggiungere spesa */}
+          {/* Form per aggiungere/modificare spesa */}
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle>Nuova Spesa</CardTitle>
-              <CardDescription>Aggiungi un nuovo spostamento</CardDescription>
+              <CardTitle>{editingId ? 'Modifica Spesa' : 'Nuova Spesa'}</CardTitle>
+              <CardDescription>
+                {editingId ? 'Modifica i dati della spesa' : 'Aggiungi un nuovo spostamento'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddExpense} className="space-y-4">
@@ -236,6 +303,19 @@ const TravelExpenses = () => {
                 </div>
 
                 <div>
+                  <Label htmlFor="rate">Tariffa Rimborso (€/km) *</Label>
+                  <Input
+                    id="rate"
+                    type="number"
+                    step="0.01"
+                    value={reimbursementRate}
+                    onChange={(e) => setReimbursementRate(e.target.value)}
+                    placeholder="Es: 0.50"
+                    required
+                  />
+                </div>
+
+                <div>
                   <Label htmlFor="date">Data Viaggio *</Label>
                   <Input
                     id="date"
@@ -257,10 +337,26 @@ const TravelExpenses = () => {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Aggiungi Spesa
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">
+                    {editingId ? (
+                      <>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Aggiorna
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Aggiungi
+                      </>
+                    )}
+                  </Button>
+                  {editingId && (
+                    <Button type="button" variant="outline" onClick={resetForm}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -272,7 +368,7 @@ const TravelExpenses = () => {
                 <div>
                   <CardTitle>Registro Spese</CardTitle>
                   <CardDescription>
-                    Totale KM: {totalKm.toFixed(1)} km
+                    Totale KM: {totalKm.toFixed(1)} km | Totale Rimborso: €{totalAmount.toFixed(2)}
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -309,13 +405,15 @@ const TravelExpenses = () => {
                         <TableHead>Partenza</TableHead>
                         <TableHead>Arrivo</TableHead>
                         <TableHead className="text-right">KM</TableHead>
+                        <TableHead className="text-right">€/km</TableHead>
+                        <TableHead className="text-right">Totale €</TableHead>
                         <TableHead>Note</TableHead>
-                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="w-20"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {expenses.map((expense) => (
-                        <TableRow key={expense.id}>
+                        <TableRow key={expense.id} className={editingId === expense.id ? 'bg-muted/50' : ''}>
                           <TableCell className="whitespace-nowrap">
                             {format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it })}
                           </TableCell>
@@ -325,20 +423,42 @@ const TravelExpenses = () => {
                           <TableCell className="text-right font-medium">
                             {expense.distance_km.toFixed(1)}
                           </TableCell>
+                          <TableCell className="text-right">
+                            €{expense.reimbursement_rate_per_km.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            €{(expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2)}
+                          </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {expense.notes || '-'}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteExpense(expense.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditExpense(expense)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteExpense(expense.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
+                      <TableRow className="font-bold bg-muted/50">
+                        <TableCell colSpan={4} className="text-right">TOTALE</TableCell>
+                        <TableCell className="text-right">{totalKm.toFixed(1)}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right">€{totalAmount.toFixed(2)}</TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                 </div>

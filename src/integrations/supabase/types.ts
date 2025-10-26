@@ -2830,6 +2830,7 @@ export type Database = {
           id: string
           mission_description: string
           notes: string | null
+          reimbursement_rate_per_km: number
           travel_date: string
           updated_at: string
           user_id: string
@@ -2842,6 +2843,7 @@ export type Database = {
           id?: string
           mission_description: string
           notes?: string | null
+          reimbursement_rate_per_km?: number
           travel_date?: string
           updated_at?: string
           user_id: string
@@ -2854,6 +2856,7 @@ export type Database = {
           id?: string
           mission_description?: string
           notes?: string | null
+          reimbursement_rate_per_km?: number
           travel_date?: string
           updated_at?: string
           user_id?: string
