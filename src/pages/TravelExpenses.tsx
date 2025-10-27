@@ -6,11 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Car, Download, Plus, Trash2, Calendar, Pencil, X } from 'lucide-react';
+import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface TravelExpense {
   id: string;
@@ -298,6 +300,138 @@ const TravelExpenses = () => {
     }
   };
 
+  const handleExportToPDF = async () => {
+    if (expenses.length === 0) {
+      toast({
+        title: "Attenzione",
+        description: "Nessun dato da esportare per questo mese",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Utente non autenticato');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      const userName = profile?.full_name || user.email || 'Utente';
+      const downloadDate = format(new Date(), 'dd/MM/yyyy', { locale: it });
+      const monthName = format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: it });
+
+      const doc = new jsPDF();
+
+      // Header
+      doc.setFontSize(10);
+      doc.text(`data emissione: ${downloadDate}`, 14, 15);
+      doc.text(`mese: ${monthName}`, 14, 20);
+      
+      doc.text('Noscite s.r.l.s.', 150, 15);
+      doc.text('Via Monte Grappa 13, Corsico (MI)', 150, 20);
+      doc.text('Codice fiscale e partita iva 14385240966', 150, 25);
+
+      // Authorization text
+      doc.setFontSize(9);
+      doc.text(`Il sig.${userName} con sede di lavoro a Corsico (MI) è autorizzato ad effettuare il viaggio`, 14, 35);
+      doc.text('utilizzando il proprio automezzo nei termini indicati nel seguente riquadro:', 14, 40);
+
+      // Vehicle info
+      doc.setFontSize(9);
+      const firstExpense = expenses[0];
+      const vehicleInfo = firstExpense.vehicle_model || '';
+      const vehiclePlate = firstExpense.vehicle_plate || '';
+      
+      doc.text('automezzo da utilizzare', 14, 48);
+      doc.text(vehicleInfo, 80, 48);
+      doc.text('targa', 150, 48);
+      doc.text(vehiclePlate, 170, 48);
+      doc.text('c.c.', 185, 48);
+
+      // Table
+      const tableData = expenses.map((expense) => [
+        format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it }),
+        expense.departure_location,
+        expense.arrival_location,
+        expense.distance_km.toFixed(1),
+        `€${expense.reimbursement_rate_per_km.toFixed(2)}`,
+        `€${(expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2)}`,
+        expense.notes || '-'
+      ]);
+
+      autoTable(doc, {
+        startY: 55,
+        head: [['DATA', 'DA', 'A', 'KM Percorsi', 'quota per KM', 'indennità KM', 'rimborso']],
+        body: tableData,
+        foot: [['TOTALI', '', '', totalKm.toFixed(1), '', `€${totalAmount.toFixed(2)}`, '']],
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.5, lineColor: [0, 0, 0] },
+        footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' }
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+
+      // Footer sections
+      doc.setFontSize(8);
+      doc.text('GIUSTIFICATIVI ALLEGATI', 14, finalY);
+      doc.text('MANDATO DI PAGAMENTO', 80, finalY);
+      doc.text('TOTALE NOTA', 150, finalY);
+      
+      doc.text('N. _______________', 14, finalY + 5);
+      doc.text('N.                  DEL', 80, finalY + 5);
+      doc.text(`SPESE: €${totalAmount.toFixed(2)}`, 150, finalY + 5);
+      
+      doc.text('', 80, finalY + 10);
+      doc.text('ANTICIPO', 150, finalY + 10);
+      
+      doc.text("V. RISCONTRO CONTABILITA'", 14, finalY + 15);
+      doc.text('V. LA DIREZIONE', 80, finalY + 15);
+      doc.text('DEL', 150, finalY + 15);
+      
+      doc.text('', 80, finalY + 20);
+      doc.text('ANTICIPO', 150, finalY + 20);
+      
+      doc.text('', 80, finalY + 25);
+      doc.text('DEL', 150, finalY + 25);
+      
+      doc.text('DATA RIMBORSO', 14, finalY + 30);
+      doc.text('FIRMA DEL DIPENDENTE', 80, finalY + 30);
+      doc.text('IMPORTO DA', 150, finalY + 30);
+      
+      doc.text(format(new Date(), 'dd.MM.yyyy', { locale: it }), 14, finalY + 35);
+      doc.text('', 80, finalY + 35);
+      doc.text(`RIMBORSARE: €${totalAmount.toFixed(2)}`, 150, finalY + 35);
+      
+      doc.text('', 14, finalY + 40);
+      doc.text('', 80, finalY + 40);
+      doc.text('EURO', 150, finalY + 40);
+
+      // Note
+      doc.setFontSize(7);
+      doc.text('N.B. : non sono consentiti rimborsi spese per percorrenze effettuate esclusivamente nell\'ambito del Comune in cui si trova', 14, finalY + 50);
+      doc.text('la sede del lavoro (cir. Min. 20.11.1976,n.13/RT/1702)', 14, finalY + 54);
+
+      const monthFileName = format(new Date(selectedMonth + '-01'), 'MMMM-yyyy', { locale: it });
+      doc.save(`rimborsi-chilometrici-${monthFileName}.pdf`);
+
+      toast({
+        title: "PDF generato",
+        description: "Il file PDF è stato scaricato",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore export PDF",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const totalKm = expenses.reduce((sum, exp) => sum + exp.distance_km, 0);
   const totalAmount = expenses.reduce((sum, exp) => sum + (exp.distance_km * exp.reimbursement_rate_per_km), 0);
 
@@ -471,6 +605,10 @@ const TravelExpenses = () => {
                   <Button onClick={handleExportToExcel} variant="outline">
                     <Download className="mr-2 h-4 w-4" />
                     Export Excel
+                  </Button>
+                  <Button onClick={handleExportToPDF} variant="outline">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export PDF
                   </Button>
                 </div>
               </div>
