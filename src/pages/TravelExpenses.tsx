@@ -599,8 +599,9 @@ const TravelExpenses = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Registro Spese</CardTitle>
-                  <CardDescription>
-                    Totale KM: {totalKm.toFixed(1)} km | Totale Rimborso: €{totalAmount.toFixed(2)}
+                  <CardDescription className="space-y-1 mt-2">
+                    <div>Totale KM: {totalKm.toFixed(1)} km</div>
+                    <div>Totale Rimborso: €{totalAmount.toFixed(2)}</div>
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
