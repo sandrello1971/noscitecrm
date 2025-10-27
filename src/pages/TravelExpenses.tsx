@@ -214,9 +214,13 @@ const TravelExpenses = () => {
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-      // Get the second sheet (Page 2 - index 1)
-      const sheetName = workbook.SheetNames[1];
+      // Remove all sheets except the second one (Page 2)
+      const sheetName = workbook.SheetNames[1]; // Get the second sheet name
       const worksheet = workbook.Sheets[sheetName];
+      
+      // Remove all other sheets
+      workbook.SheetNames = [sheetName];
+      workbook.Sheets = { [sheetName]: worksheet };
 
       // Replace placeholders
       const downloadDate = format(new Date(), 'dd/MM/yyyy', { locale: it });
