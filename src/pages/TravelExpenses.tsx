@@ -314,13 +314,15 @@ const TravelExpenses = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utente non autenticato');
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('first_name, last_name')
         .eq('id', user.id)
         .single();
 
-      const userName = profile?.full_name || 'Utente';
+      const userName = userProfile 
+        ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() 
+        : 'Utente';
       const downloadDate = format(new Date(), 'dd/MM/yyyy', { locale: it });
       const monthName = format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: it });
 
