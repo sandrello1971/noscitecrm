@@ -220,6 +220,7 @@ const TravelExpenses = () => {
 
       // Replace placeholders
       const downloadDate = format(new Date(), 'dd/MM/yyyy', { locale: it });
+      const monthName = format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: it });
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
       
       for (let R = range.s.r; R <= range.e.r; ++R) {
@@ -233,6 +234,9 @@ const TravelExpenses = () => {
               }
               if (cell.v.includes('<nomeutente>')) {
                 cell.v = cell.v.replace('<nomeutente>', userName);
+              }
+              if (cell.v.includes('<mese>')) {
+                cell.v = cell.v.replace('<mese>', monthName);
               }
             }
           }
@@ -262,8 +266,8 @@ const TravelExpenses = () => {
         worksheet['!ref'] = XLSX.utils.encode_range(newRange);
       }
 
-      const monthName = format(new Date(selectedMonth + '-01'), 'MMMM-yyyy', { locale: it });
-      XLSX.writeFile(workbook, `rimborsi-chilometrici-${monthName}.xls`);
+      const monthFileName = format(new Date(selectedMonth + '-01'), 'MMMM-yyyy', { locale: it });
+      XLSX.writeFile(workbook, `rimborsi-chilometrici-${monthFileName}.xls`);
 
       toast({
         title: "Export completato",
