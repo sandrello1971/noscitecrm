@@ -185,7 +185,7 @@ const TravelExpenses = () => {
     }
   };
 
-  const handleExportToExcel = () => {
+  const handleExportToExcel = async () => {
     if (expenses.length === 0) {
       toast({
         title: "Attenzione",
@@ -195,40 +195,87 @@ const TravelExpenses = () => {
       return;
     }
 
-    const exportData = expenses.map((expense) => ({
-      Data: format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it }),
-      Missione: expense.mission_description,
-      Partenza: expense.departure_location,
-      Arrivo: expense.arrival_location,
-      'KM Percorsi': expense.distance_km,
-      'Tariffa €/km': expense.reimbursement_rate_per_km,
-      'Totale €': (expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2),
-      Note: expense.notes || '',
-    }));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Utente non autenticato');
 
-    // Add total row
-    exportData.push({
-      Data: '',
-      Missione: '',
-      Partenza: '',
-      Arrivo: 'TOTALE',
-      'KM Percorsi': parseFloat(totalKm.toFixed(1)),
-      'Tariffa €/km': '' as any,
-      'Totale €': totalAmount.toFixed(2),
-      Note: '',
-    });
+      // Get user profile for name
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Rimborsi Chilometrici');
+      const userName = profile?.full_name || user.email || 'Utente';
 
-    const monthName = format(new Date(selectedMonth + '-01'), 'MMMM-yyyy', { locale: it });
-    XLSX.writeFile(wb, `rimborsi-chilometrici-${monthName}.xlsx`);
+      // Load the template
+      const templateUrl = new URL('../assets/rimborso_template.xls', import.meta.url).href;
+      const response = await fetch(templateUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-    toast({
-      title: "Export completato",
-      description: "Il file Excel è stato scaricato",
-    });
+      // Get the second sheet (Page 2 - index 1)
+      const sheetName = workbook.SheetNames[1];
+      const worksheet = workbook.Sheets[sheetName];
+
+      // Replace placeholders
+      const downloadDate = format(new Date(), 'dd/MM/yyyy', { locale: it });
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          const cell = worksheet[cellAddress];
+          if (cell && cell.v) {
+            if (typeof cell.v === 'string') {
+              if (cell.v.includes('<datadownload>')) {
+                cell.v = cell.v.replace('<datadownload>', downloadDate);
+              }
+              if (cell.v.includes('<nomeutente>')) {
+                cell.v = cell.v.replace('<nomeutente>', userName);
+              }
+            }
+          }
+        }
+      }
+
+      // Insert expense data starting from row 81 (index 80)
+      let currentRow = 80;
+      expenses.forEach((expense) => {
+        worksheet[`A${currentRow}`] = { t: 's', v: format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it }) };
+        worksheet[`B${currentRow}`] = { t: 's', v: `${expense.mission_description} - ${expense.departure_location}/${expense.arrival_location}` };
+        worksheet[`E${currentRow}`] = { t: 'n', v: expense.distance_km };
+        worksheet[`F${currentRow}`] = { t: 'n', v: expense.reimbursement_rate_per_km };
+        worksheet[`G${currentRow}`] = { t: 'n', v: parseFloat((expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2)) };
+        worksheet[`H${currentRow}`] = { t: 's', v: expense.notes || '-' };
+        currentRow++;
+      });
+
+      // Add totals at row 93 (index 92)
+      worksheet['F93'] = { t: 's', v: 'EURO' };
+      worksheet['G93'] = { t: 'n', v: parseFloat(totalAmount.toFixed(2)) };
+
+      // Update cell range to include new data
+      const newRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      if (currentRow > newRange.e.r) {
+        newRange.e.r = currentRow;
+        worksheet['!ref'] = XLSX.utils.encode_range(newRange);
+      }
+
+      const monthName = format(new Date(selectedMonth + '-01'), 'MMMM-yyyy', { locale: it });
+      XLSX.writeFile(workbook, `rimborsi-chilometrici-${monthName}.xls`);
+
+      toast({
+        title: "Export completato",
+        description: "Il file Excel è stato scaricato",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore export",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const totalKm = expenses.reduce((sum, exp) => sum + exp.distance_km, 0);
