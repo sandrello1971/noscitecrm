@@ -320,7 +320,7 @@ const TravelExpenses = () => {
         .eq('id', user.id)
         .single();
 
-      const userName = profile?.full_name || user.email || 'Utente';
+      const userName = profile?.full_name || 'Utente';
       const downloadDate = format(new Date(), 'dd/MM/yyyy', { locale: it });
       const monthName = format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: it });
 
@@ -331,14 +331,17 @@ const TravelExpenses = () => {
       doc.text(`data emissione: ${downloadDate}`, 14, 15);
       doc.text(`mese: ${monthName}`, 14, 20);
       
-      doc.text('Noscite s.r.l.s.', 150, 15);
-      doc.text('Via Monte Grappa 13, Corsico (MI)', 150, 20);
-      doc.text('Codice fiscale e partita iva 14385240966', 150, 25);
+      // Company info - aligned to the right but with proper margins
+      doc.text('Noscite s.r.l.s.', 120, 15);
+      doc.text('Via Monte Grappa 13, Corsico (MI)', 120, 20);
+      doc.setFontSize(9);
+      doc.text('Codice fiscale e partita iva', 120, 25);
+      doc.text('14385240966', 120, 29);
 
       // Authorization text
       doc.setFontSize(9);
-      doc.text(`Il sig.${userName} con sede di lavoro a Corsico (MI) è autorizzato ad effettuare il viaggio`, 14, 35);
-      doc.text('utilizzando il proprio automezzo nei termini indicati nel seguente riquadro:', 14, 40);
+      doc.text(`Il sig.${userName} con sede di lavoro a Corsico (MI) è autorizzato ad effettuare il viaggio`, 14, 38);
+      doc.text('utilizzando il proprio automezzo nei termini indicati nel seguente riquadro:', 14, 43);
 
       // Vehicle info
       doc.setFontSize(9);
@@ -346,11 +349,11 @@ const TravelExpenses = () => {
       const vehicleInfo = firstExpense.vehicle_model || '';
       const vehiclePlate = firstExpense.vehicle_plate || '';
       
-      doc.text('automezzo da utilizzare', 14, 48);
-      doc.text(vehicleInfo, 80, 48);
-      doc.text('targa', 150, 48);
-      doc.text(vehiclePlate, 170, 48);
-      doc.text('c.c.', 185, 48);
+      doc.text('automezzo da utilizzare', 14, 51);
+      doc.text(vehicleInfo, 80, 51);
+      doc.text('targa', 150, 51);
+      doc.text(vehiclePlate, 170, 51);
+      doc.text('c.c.', 185, 51);
 
       // Table
       const tableData = expenses.map((expense) => [
@@ -364,14 +367,20 @@ const TravelExpenses = () => {
       ]);
 
       autoTable(doc, {
-        startY: 55,
+        startY: 58,
         head: [['DATA', 'DA', 'A', 'KM Percorsi', 'quota per KM', 'indennità KM', 'rimborso']],
         body: tableData,
         foot: [['TOTALI', '', '', totalKm.toFixed(1), '', `€${totalAmount.toFixed(2)}`, '']],
         theme: 'grid',
         styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.5, lineColor: [0, 0, 0] },
-        footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' }
+        headStyles: { 
+          fillColor: [220, 220, 220], 
+          textColor: [0, 0, 0], 
+          lineWidth: 0.5, 
+          lineColor: [0, 0, 0],
+          fontStyle: 'bold'
+        },
+        footStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' }
       });
 
       const finalY = (doc as any).lastAutoTable.finalY + 10;
