@@ -21,6 +21,8 @@ interface TravelExpense {
   reimbursement_rate_per_km: number;
   travel_date: string;
   notes?: string;
+  vehicle_plate?: string;
+  vehicle_model?: string;
 }
 
 const TravelExpenses = () => {
@@ -38,6 +40,8 @@ const TravelExpenses = () => {
   const [reimbursementRate, setReimbursementRate] = useState('0.50');
   const [travelDate, setTravelDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [notes, setNotes] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
 
   const fetchExpenses = async () => {
     try {
@@ -76,6 +80,8 @@ const TravelExpenses = () => {
     setReimbursementRate('0.50');
     setNotes('');
     setTravelDate(format(new Date(), 'yyyy-MM-dd'));
+    setVehiclePlate('');
+    setVehicleModel('');
     setEditingId(null);
   };
 
@@ -107,6 +113,8 @@ const TravelExpenses = () => {
             reimbursement_rate_per_km: parseFloat(reimbursementRate),
             travel_date: travelDate,
             notes: notes || null,
+            vehicle_plate: vehiclePlate || null,
+            vehicle_model: vehicleModel || null,
           })
           .eq('id', editingId);
 
@@ -127,6 +135,8 @@ const TravelExpenses = () => {
           reimbursement_rate_per_km: parseFloat(reimbursementRate),
           travel_date: travelDate,
           notes: notes || null,
+          vehicle_plate: vehiclePlate || null,
+          vehicle_model: vehicleModel || null,
         });
 
         if (error) throw error;
@@ -157,6 +167,8 @@ const TravelExpenses = () => {
     setReimbursementRate(expense.reimbursement_rate_per_km.toString());
     setTravelDate(expense.travel_date);
     setNotes(expense.notes || '');
+    setVehiclePlate(expense.vehicle_plate || '');
+    setVehicleModel(expense.vehicle_model || '');
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -319,6 +331,26 @@ const TravelExpenses = () => {
                     onChange={(e) => setMissionDescription(e.target.value)}
                     placeholder="Es: Visita cliente X"
                     required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="vehiclePlate">Targa Auto</Label>
+                  <Input
+                    id="vehiclePlate"
+                    value={vehiclePlate}
+                    onChange={(e) => setVehiclePlate(e.target.value)}
+                    placeholder="Es: AB123CD"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="vehicleModel">Modello Auto</Label>
+                  <Input
+                    id="vehicleModel"
+                    value={vehicleModel}
+                    onChange={(e) => setVehicleModel(e.target.value)}
+                    placeholder="Es: Fiat Panda"
                   />
                 </div>
 

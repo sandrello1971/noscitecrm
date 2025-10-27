@@ -2834,6 +2834,8 @@ export type Database = {
           travel_date: string
           updated_at: string
           user_id: string
+          vehicle_model: string | null
+          vehicle_plate: string | null
         }
         Insert: {
           arrival_location: string
@@ -2847,6 +2849,8 @@ export type Database = {
           travel_date?: string
           updated_at?: string
           user_id: string
+          vehicle_model?: string | null
+          vehicle_plate?: string | null
         }
         Update: {
           arrival_location?: string
@@ -2860,6 +2864,8 @@ export type Database = {
           travel_date?: string
           updated_at?: string
           user_id?: string
+          vehicle_model?: string | null
+          vehicle_plate?: string | null
         }
         Relationships: []
       }
