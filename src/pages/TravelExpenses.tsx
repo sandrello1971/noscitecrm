@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText } from 'lucide-react';
+import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText, Copy } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -177,6 +177,25 @@ const TravelExpenses = () => {
     setVehiclePlate(expense.vehicle_plate || '');
     setVehicleModel(expense.vehicle_model || '');
     setRequiresDiaria(expense.requires_diaria || false);
+  };
+
+  const handleDuplicateExpense = (expense: TravelExpense) => {
+    setEditingId(null); // Clear any editing state
+    setMissionDescription(expense.mission_description);
+    setDepartureLocation(expense.departure_location);
+    setArrivalLocation(expense.arrival_location);
+    setDistanceKm(expense.distance_km.toString());
+    setReimbursementRate(expense.reimbursement_rate_per_km.toString());
+    setTravelDate(format(new Date(), 'yyyy-MM-dd')); // Set to today
+    setNotes(expense.notes || '');
+    setVehiclePlate(expense.vehicle_plate || '');
+    setVehicleModel(expense.vehicle_model || '');
+    setRequiresDiaria(expense.requires_diaria || false);
+    
+    toast({
+      title: "Pronto per duplicare",
+      description: "Modifica i dati e clicca Aggiungi per salvare",
+    });
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -714,13 +733,23 @@ const TravelExpenses = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditExpense(expense)}
+                                title="Modifica"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleDuplicateExpense(expense)}
+                                title="Duplica"
+                              >
+                                <Copy className="h-4 w-4 text-primary" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleDeleteExpense(expense.id)}
+                                title="Elimina"
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
