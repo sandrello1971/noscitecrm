@@ -25,6 +25,7 @@ interface TravelExpense {
   notes?: string;
   vehicle_plate?: string;
   vehicle_model?: string;
+  requires_diaria?: boolean;
 }
 
 const TravelExpenses = () => {
@@ -44,6 +45,7 @@ const TravelExpenses = () => {
   const [notes, setNotes] = useState('');
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
+  const [requiresDiaria, setRequiresDiaria] = useState(false);
 
   const fetchExpenses = async () => {
     try {
@@ -84,6 +86,7 @@ const TravelExpenses = () => {
     setTravelDate(format(new Date(), 'yyyy-MM-dd'));
     setVehiclePlate('');
     setVehicleModel('');
+    setRequiresDiaria(false);
     setEditingId(null);
   };
 
@@ -117,6 +120,7 @@ const TravelExpenses = () => {
             notes: notes || null,
             vehicle_plate: vehiclePlate || null,
             vehicle_model: vehicleModel || null,
+            requires_diaria: requiresDiaria,
           })
           .eq('id', editingId);
 
@@ -139,6 +143,7 @@ const TravelExpenses = () => {
           notes: notes || null,
           vehicle_plate: vehiclePlate || null,
           vehicle_model: vehicleModel || null,
+          requires_diaria: requiresDiaria,
         });
 
         if (error) throw error;
@@ -171,6 +176,7 @@ const TravelExpenses = () => {
     setNotes(expense.notes || '');
     setVehiclePlate(expense.vehicle_plate || '');
     setVehicleModel(expense.vehicle_model || '');
+    setRequiresDiaria(expense.requires_diaria || false);
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -264,11 +270,15 @@ const TravelExpenses = () => {
       // Insert expense data starting from row 81 (index 80)
       let currentRow = 80;
       expenses.forEach((expense) => {
+        const kmReimbursement = expense.distance_km * expense.reimbursement_rate_per_km;
+        const diariaAmount = expense.requires_diaria ? 46 : 0;
+        const totalExpense = kmReimbursement + diariaAmount;
+        
         worksheet[`A${currentRow}`] = { t: 's', v: format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it }) };
-        worksheet[`B${currentRow}`] = { t: 's', v: `${expense.mission_description} - ${expense.departure_location}/${expense.arrival_location}` };
+        worksheet[`B${currentRow}`] = { t: 's', v: `${expense.mission_description} - ${expense.departure_location}/${expense.arrival_location}${expense.requires_diaria ? ' + Diaria' : ''}` };
         worksheet[`E${currentRow}`] = { t: 'n', v: expense.distance_km };
         worksheet[`F${currentRow}`] = { t: 'n', v: expense.reimbursement_rate_per_km };
-        worksheet[`G${currentRow}`] = { t: 'n', v: parseFloat((expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2)) };
+        worksheet[`G${currentRow}`] = { t: 'n', v: parseFloat(totalExpense.toFixed(2)) };
         worksheet[`H${currentRow}`] = { t: 's', v: expense.notes || '-' };
         currentRow++;
       });
@@ -358,21 +368,29 @@ const TravelExpenses = () => {
       doc.text('c.c.', 185, 51);
 
       // Table
-      const tableData = expenses.map((expense) => [
-        format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it }),
-        expense.departure_location,
-        expense.arrival_location,
-        expense.distance_km.toFixed(1),
-        `€${expense.reimbursement_rate_per_km.toFixed(2)}`,
-        `€${(expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2)}`,
-        expense.notes || '-'
-      ]);
+      const tableData = expenses.map((expense) => {
+        const kmReimbursement = expense.distance_km * expense.reimbursement_rate_per_km;
+        const diariaAmount = expense.requires_diaria ? 46 : 0;
+        const totalExpense = kmReimbursement + diariaAmount;
+        
+        return [
+          format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it }),
+          expense.departure_location,
+          expense.arrival_location,
+          expense.distance_km.toFixed(1),
+          `€${expense.reimbursement_rate_per_km.toFixed(2)}`,
+          expense.requires_diaria ? '€46' : '-',
+          `€${kmReimbursement.toFixed(2)}`,
+          `€${totalExpense.toFixed(2)}`,
+          expense.notes || '-'
+        ];
+      });
 
       autoTable(doc, {
         startY: 58,
-        head: [['DATA', 'DA', 'A', 'KM Percorsi', 'quota per KM', 'indennità KM', 'rimborso']],
+        head: [['DATA', 'DA', 'A', 'KM', '€/KM', 'Diaria', 'Ind. KM', 'Totale', 'Note']],
         body: tableData,
-        foot: [['TOTALI', '', '', totalKm.toFixed(1), '', `€${totalAmount.toFixed(2)}`, '']],
+        foot: [['TOTALI', '', '', totalKm.toFixed(1), '', '', '', `€${totalAmount.toFixed(2)}`, '']],
         theme: 'grid',
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { 
@@ -444,7 +462,11 @@ const TravelExpenses = () => {
   };
 
   const totalKm = expenses.reduce((sum, exp) => sum + exp.distance_km, 0);
-  const totalAmount = expenses.reduce((sum, exp) => sum + (exp.distance_km * exp.reimbursement_rate_per_km), 0);
+  const totalAmount = expenses.reduce((sum, exp) => {
+    const kmReimbursement = exp.distance_km * exp.reimbursement_rate_per_km;
+    const diariaAmount = exp.requires_diaria ? 46 : 0;
+    return sum + kmReimbursement + diariaAmount;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -569,6 +591,19 @@ const TravelExpenses = () => {
                   />
                 </div>
 
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="diaria"
+                    checked={requiresDiaria}
+                    onChange={(e) => setRequiresDiaria(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="diaria" className="cursor-pointer">
+                    Diaria necessaria (+€46)
+                  </Label>
+                </div>
+
                 <div className="flex gap-2">
                   <Button type="submit" className="flex-1">
                     {editingId ? (
@@ -643,6 +678,7 @@ const TravelExpenses = () => {
                         <TableHead>Arrivo</TableHead>
                         <TableHead className="text-right">KM</TableHead>
                         <TableHead className="text-right">€/km</TableHead>
+                        <TableHead className="text-center">Diaria</TableHead>
                         <TableHead className="text-right">Totale €</TableHead>
                         <TableHead>Note</TableHead>
                         <TableHead className="w-20"></TableHead>
@@ -663,8 +699,11 @@ const TravelExpenses = () => {
                           <TableCell className="text-right">
                             €{expense.reimbursement_rate_per_km.toFixed(2)}
                           </TableCell>
+                          <TableCell className="text-center">
+                            {expense.requires_diaria ? '✓ €46' : '-'}
+                          </TableCell>
                           <TableCell className="text-right font-medium">
-                            €{(expense.distance_km * expense.reimbursement_rate_per_km).toFixed(2)}
+                            €{((expense.distance_km * expense.reimbursement_rate_per_km) + (expense.requires_diaria ? 46 : 0)).toFixed(2)}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {expense.notes || '-'}

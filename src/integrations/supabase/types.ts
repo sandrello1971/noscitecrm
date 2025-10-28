@@ -2831,6 +2831,7 @@ export type Database = {
           mission_description: string
           notes: string | null
           reimbursement_rate_per_km: number
+          requires_diaria: boolean
           travel_date: string
           updated_at: string
           user_id: string
@@ -2846,6 +2847,7 @@ export type Database = {
           mission_description: string
           notes?: string | null
           reimbursement_rate_per_km?: number
+          requires_diaria?: boolean
           travel_date?: string
           updated_at?: string
           user_id: string
@@ -2861,6 +2863,7 @@ export type Database = {
           mission_description?: string
           notes?: string | null
           reimbursement_rate_per_km?: number
+          requires_diaria?: boolean
           travel_date?: string
           updated_at?: string
           user_id?: string
