@@ -50,7 +50,9 @@ const TravelExpenses = () => {
   const fetchExpenses = async () => {
     try {
       const startDate = `${selectedMonth}-01`;
-      const endDate = `${selectedMonth}-31`;
+      const [year, month] = selectedMonth.split('-');
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const endDate = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
 
       const { data, error } = await supabase
         .from('travel_expenses')
