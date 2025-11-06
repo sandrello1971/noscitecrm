@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText, Copy } from 'lucide-react';
+import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText, Copy, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -34,6 +35,7 @@ const TravelExpenses = () => {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Form state
   const [missionDescription, setMissionDescription] = useState('');
@@ -492,12 +494,22 @@ const TravelExpenses = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Car className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Rimborsi Chilometrici</h1>
-            <p className="text-muted-foreground">Gestisci le tue spese di viaggio</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Car className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-3xl font-bold">Rimborsi Chilometrici</h1>
+              <p className="text-muted-foreground">Gestisci le tue spese di viaggio</p>
+            </div>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard')}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Dashboard
+          </Button>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
