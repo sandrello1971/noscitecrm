@@ -143,7 +143,7 @@ const TravelExpenses = () => {
           notes: notes || null,
           vehicle_plate: vehiclePlate || null,
           vehicle_model: vehicleModel || null,
-          requires_diaria: requiresDiaria,
+          requires_diaria: requiresDiaria || false,
         });
 
         if (error) throw error;
