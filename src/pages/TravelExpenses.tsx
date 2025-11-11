@@ -51,6 +51,9 @@ const TravelExpenses = () => {
 
   const fetchExpenses = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Utente non autenticato');
+
       const startDate = `${selectedMonth}-01`;
       const [year, month] = selectedMonth.split('-');
       const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
@@ -59,6 +62,7 @@ const TravelExpenses = () => {
       const { data, error } = await supabase
         .from('travel_expenses')
         .select('*')
+        .eq('user_id', user.id)
         .gte('travel_date', startDate)
         .lte('travel_date', endDate)
         .order('travel_date', { ascending: false });
