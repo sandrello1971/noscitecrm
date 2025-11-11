@@ -2324,6 +2324,7 @@ export type Database = {
       project_expenses: {
         Row: {
           amount: number
+          amount_spent: number | null
           approval_notes: string | null
           approved_at: string | null
           approved_by: string | null
@@ -2332,9 +2333,11 @@ export type Database = {
           created_by: string
           description: string
           expense_date: string
+          file_hash: string | null
           id: string
           is_approved: boolean | null
           milestone_id: string | null
+          project_category: string | null
           project_id: string
           receipt_number: string | null
           receipt_url: string | null
@@ -2343,6 +2346,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          amount_spent?: number | null
           approval_notes?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -2351,9 +2355,11 @@ export type Database = {
           created_by: string
           description: string
           expense_date: string
+          file_hash?: string | null
           id?: string
           is_approved?: boolean | null
           milestone_id?: string | null
+          project_category?: string | null
           project_id: string
           receipt_number?: string | null
           receipt_url?: string | null
@@ -2362,6 +2368,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_spent?: number | null
           approval_notes?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -2370,9 +2377,11 @@ export type Database = {
           created_by?: string
           description?: string
           expense_date?: string
+          file_hash?: string | null
           id?: string
           is_approved?: boolean | null
           milestone_id?: string | null
+          project_category?: string | null
           project_id?: string
           receipt_number?: string | null
           receipt_url?: string | null
@@ -2824,14 +2833,18 @@ export type Database = {
       travel_expenses: {
         Row: {
           arrival_location: string
+          attachment_urls: Json | null
           created_at: string
           departure_location: string
           distance_km: number
+          finalized_at: string | null
           id: string
           mission_description: string
           notes: string | null
           reimbursement_rate_per_km: number
           requires_diaria: boolean
+          status: string | null
+          submitted_at: string | null
           travel_date: string
           updated_at: string
           user_id: string
@@ -2840,14 +2853,18 @@ export type Database = {
         }
         Insert: {
           arrival_location: string
+          attachment_urls?: Json | null
           created_at?: string
           departure_location: string
           distance_km: number
+          finalized_at?: string | null
           id?: string
           mission_description: string
           notes?: string | null
           reimbursement_rate_per_km?: number
           requires_diaria?: boolean
+          status?: string | null
+          submitted_at?: string | null
           travel_date?: string
           updated_at?: string
           user_id: string
@@ -2856,14 +2873,18 @@ export type Database = {
         }
         Update: {
           arrival_location?: string
+          attachment_urls?: Json | null
           created_at?: string
           departure_location?: string
           distance_km?: number
+          finalized_at?: string | null
           id?: string
           mission_description?: string
           notes?: string | null
           reimbursement_rate_per_km?: number
           requires_diaria?: boolean
+          status?: string | null
+          submitted_at?: string | null
           travel_date?: string
           updated_at?: string
           user_id?: string
@@ -3048,6 +3069,10 @@ export type Database = {
       }
       cleanup_old_chat_conversations: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      finalize_travel_expense: {
+        Args: { expense_id: string }
+        Returns: undefined
+      }
       generate_api_key_hash: { Args: { api_key: string }; Returns: string }
       generate_document_hash: {
         Args: { algorithm?: string; file_content: string }

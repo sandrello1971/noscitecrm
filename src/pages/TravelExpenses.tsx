@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText, Copy, ArrowLeft } from 'lucide-react';
+import { Car, Download, Plus, Trash2, Calendar, Pencil, X, FileText, Copy, ArrowLeft, Upload, Eye, CheckCircle, Image as ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -14,6 +14,8 @@ import { it } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface TravelExpense {
   id: string;
@@ -27,6 +29,10 @@ interface TravelExpense {
   vehicle_plate?: string;
   vehicle_model?: string;
   requires_diaria?: boolean;
+  status?: 'draft' | 'submitted' | 'approved' | 'rejected';
+  attachment_urls?: Array<{ name: string; url: string; size: number }>;
+  submitted_at?: string;
+  finalized_at?: string;
 }
 
 const TravelExpenses = () => {
@@ -48,6 +54,8 @@ const TravelExpenses = () => {
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [requiresDiaria, setRequiresDiaria] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [viewingAttachments, setViewingAttachments] = useState<TravelExpense | null>(null);
 
   const fetchExpenses = async () => {
     try {
@@ -68,7 +76,11 @@ const TravelExpenses = () => {
         .order('travel_date', { ascending: false });
 
       if (error) throw error;
-      setExpenses(data || []);
+      setExpenses((data || []).map(exp => ({
+        ...exp,
+        status: exp.status as 'draft' | 'submitted' | 'approved' | 'rejected',
+        attachment_urls: exp.attachment_urls ? JSON.parse(JSON.stringify(exp.attachment_urls)) : []
+      })));
     } catch (error: any) {
       toast({
         title: "Errore",
@@ -95,6 +107,7 @@ const TravelExpenses = () => {
     setVehiclePlate('');
     setVehicleModel('');
     setRequiresDiaria(false);
+    setAttachments([]);
     setEditingId(null);
   };
 
@@ -114,8 +127,40 @@ const TravelExpenses = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utente non autenticato');
 
+      // Upload attachments if any
+      let uploadedAttachments: Array<{ name: string; url: string; size: number }> = [];
+      
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('travel-expense-attachments')
+            .upload(fileName, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('travel-expense-attachments')
+            .getPublicUrl(fileName);
+
+          uploadedAttachments.push({
+            name: file.name,
+            url: publicUrl,
+            size: file.size
+          });
+        }
+      }
+
       if (editingId) {
-        // Update existing expense
+        // Update existing expense - merge with existing attachments
+        const existingExpense = expenses.find(e => e.id === editingId);
+        const mergedAttachments = [
+          ...(existingExpense?.attachment_urls || []),
+          ...uploadedAttachments
+        ];
+
         const { error } = await supabase
           .from('travel_expenses')
           .update({
@@ -129,6 +174,7 @@ const TravelExpenses = () => {
             vehicle_plate: vehiclePlate || null,
             vehicle_model: vehicleModel || null,
             requires_diaria: requiresDiaria,
+            attachment_urls: mergedAttachments,
           })
           .eq('id', editingId);
 
@@ -152,6 +198,8 @@ const TravelExpenses = () => {
           vehicle_plate: vehiclePlate || null,
           vehicle_model: vehicleModel || null,
           requires_diaria: requiresDiaria || false,
+          attachment_urls: uploadedAttachments,
+          status: 'draft',
         });
 
         if (error) throw error;
@@ -210,6 +258,22 @@ const TravelExpenses = () => {
     if (!confirm('Sei sicuro di voler eliminare questa spesa?')) return;
 
     try {
+      // Get expense to delete attachments
+      const expense = expenses.find(e => e.id === id);
+      
+      // Delete attachments from storage
+      if (expense?.attachment_urls && expense.attachment_urls.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          for (const att of expense.attachment_urls) {
+            const path = att.url.split('/').slice(-2).join('/'); // Get user_id/filename
+            await supabase.storage
+              .from('travel-expense-attachments')
+              .remove([path]);
+          }
+        }
+      }
+
       const { error } = await supabase.from('travel_expenses').delete().eq('id', id);
       if (error) throw error;
 
@@ -230,6 +294,33 @@ const TravelExpenses = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleFinalizeExpense = async (id: string) => {
+    if (!confirm('Vuoi finalizzare questa nota spese? Una volta finalizzata non potrà essere modificata.')) return;
+
+    try {
+      const { error } = await supabase.rpc('finalize_travel_expense', { expense_id: id });
+      
+      if (error) throw error;
+
+      toast({
+        title: "Finalizzata",
+        description: "Nota spese finalizzata con successo",
+      });
+      
+      fetchExpenses();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleExportToExcel = async () => {
@@ -641,6 +732,42 @@ const TravelExpenses = () => {
                   </Label>
                 </div>
 
+                <div>
+                  <Label htmlFor="attachments">Allegati (scontrini, ricevute)</Label>
+                  <Input
+                    id="attachments"
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+                      }
+                    }}
+                    className="cursor-pointer"
+                  />
+                  {attachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {attachments.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm bg-muted p-2 rounded">
+                          <span className="flex items-center gap-2">
+                            <ImageIcon className="h-4 w-4" />
+                            {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveAttachment(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <Button type="submit" className="flex-1">
                     {editingId ? (
@@ -717,12 +844,16 @@ const TravelExpenses = () => {
                         <TableHead className="text-right">€/km</TableHead>
                         <TableHead className="text-center">Diaria</TableHead>
                         <TableHead className="text-right">Totale €</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Allegati</TableHead>
                         <TableHead>Note</TableHead>
-                        <TableHead className="w-20"></TableHead>
+                        <TableHead className="w-32"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {expenses.map((expense) => (
+                      {expenses.map((expense) => {
+                        const isFinalized = expense.status === 'submitted' || expense.status === 'approved';
+                        return (
                         <TableRow key={expense.id} className={editingId === expense.id ? 'bg-muted/50' : ''}>
                           <TableCell className="whitespace-nowrap">
                             {format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it })}
@@ -742,39 +873,89 @@ const TravelExpenses = () => {
                           <TableCell className="text-right font-medium">
                             €{((expense.distance_km * expense.reimbursement_rate_per_km) + (expense.requires_diaria ? 46 : 0)).toFixed(2)}
                           </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              expense.status === 'submitted' ? 'default' :
+                              expense.status === 'approved' ? 'default' :
+                              expense.status === 'rejected' ? 'destructive' :
+                              'secondary'
+                            }>
+                              {expense.status === 'submitted' ? 'Finalizzata' :
+                               expense.status === 'approved' ? 'Approvata' :
+                               expense.status === 'rejected' ? 'Rifiutata' :
+                               'Bozza'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {expense.attachment_urls && expense.attachment_urls.length > 0 ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setViewingAttachments(expense)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                {expense.attachment_urls.length}
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {expense.notes || '-'}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditExpense(expense)}
-                                title="Modifica"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDuplicateExpense(expense)}
-                                title="Duplica"
-                              >
-                                <Copy className="h-4 w-4 text-primary" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteExpense(expense.id)}
-                                title="Elimina"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                            <div className="flex gap-1 flex-wrap">
+                              {!isFinalized && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditExpense(expense)}
+                                    title="Modifica"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDuplicateExpense(expense)}
+                                    title="Duplica"
+                                  >
+                                    <Copy className="h-4 w-4 text-primary" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteExpense(expense.id)}
+                                    title="Elimina"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleFinalizeExpense(expense.id)}
+                                    title="Finalizza"
+                                  >
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                  </Button>
+                                </>
+                              )}
+                              {isFinalized && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDuplicateExpense(expense)}
+                                  title="Duplica"
+                                >
+                                  <Copy className="h-4 w-4 text-primary" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
+
                       <TableRow className="font-bold bg-muted/50">
                         <TableCell colSpan={4} className="text-right">TOTALE</TableCell>
                         <TableCell className="text-right">{totalKm.toFixed(1)}</TableCell>
@@ -790,6 +971,54 @@ const TravelExpenses = () => {
           </Card>
         </div>
       </div>
+
+      {/* Dialog for viewing attachments */}
+      <Dialog open={!!viewingAttachments} onOpenChange={() => setViewingAttachments(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Allegati Nota Spese</DialogTitle>
+            <DialogDescription>
+              {viewingAttachments?.mission_description} - {viewingAttachments && format(new Date(viewingAttachments.travel_date), 'dd/MM/yyyy', { locale: it })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {viewingAttachments?.attachment_urls?.map((attachment, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium truncate">{attachment.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {(attachment.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
+                    {attachment.url.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ? (
+                      <img 
+                        src={attachment.url} 
+                        alt={attachment.name}
+                        className="w-full h-48 object-cover rounded border"
+                      />
+                    ) : (
+                      <div className="w-full h-48 flex items-center justify-center bg-muted rounded border">
+                        <FileText className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => window.open(attachment.url, '_blank')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Scarica
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
