@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { AddressAutocomplete } from "./AddressAutocomplete"
 
 interface AddCompanyDialogProps {
   open: boolean
@@ -178,45 +179,16 @@ export function AddCompanyDialog({ open, onOpenChange, onCompanyAdded }: AddComp
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Indirizzo</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => updateFormData("address", e.target.value)}
-              placeholder="Via Roma, 123"
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">Città</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => updateFormData("city", e.target.value)}
-                placeholder="Milano"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="province">Provincia</Label>
-              <Input
-                id="province"
-                value={formData.province}
-                onChange={(e) => updateFormData("province", e.target.value)}
-                placeholder="MI"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="postal_code">CAP</Label>
-              <Input
-                id="postal_code"
-                value={formData.postal_code}
-                onChange={(e) => updateFormData("postal_code", e.target.value)}
-                placeholder="20100"
-              />
-            </div>
-          </div>
+          <AddressAutocomplete
+            address={formData.address}
+            city={formData.city}
+            province={formData.province}
+            postalCode={formData.postal_code}
+            onAddressChange={(value) => updateFormData("address", value)}
+            onCityChange={(value) => updateFormData("city", value)}
+            onProvinceChange={(value) => updateFormData("province", value)}
+            onPostalCodeChange={(value) => updateFormData("postal_code", value)}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="notes">Note</Label>
