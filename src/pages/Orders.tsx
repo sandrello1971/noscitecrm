@@ -370,7 +370,13 @@ export default function Orders() {
       cancelled: orders.filter(o => o.status === 'cancelled').length,
       totalValue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
       avgProgress: orders.length > 0 
-        ? Math.round(orders.reduce((sum, o) => sum + (o.progress_percentage || 0), 0) / orders.length)
+        ? Math.round(orders.reduce((sum, o) => {
+            // Usa il progresso calcolato dalle ore se disponibile
+            const progress = (o.estimated_hours && o.estimated_hours > 0)
+              ? Math.min(100, Math.round(((o.actual_hours || 0) / o.estimated_hours) * 100))
+              : (o.progress_percentage || 0)
+            return sum + progress
+          }, 0) / orders.length)
         : 0,
       totalHours: orders.reduce((sum, o) => sum + (o.actual_hours || 0), 0),
       estimatedHours: orders.reduce((sum, o) => sum + (o.estimated_hours || 0), 0)
@@ -685,16 +691,27 @@ export default function Orders() {
                     </div>
 
                     {/* Barra di progresso */}
-                    {order.progress_percentage !== undefined && (
+                    {(order.estimated_hours || order.progress_percentage !== undefined) && (
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="flex items-center">
                             <BarChart3 className="mr-1 h-4 w-4" />
                             Progresso
                           </span>
-                          <span>{order.progress_percentage}%</span>
+                          <span>
+                            {order.estimated_hours && order.estimated_hours > 0
+                              ? Math.min(100, Math.round(((order.actual_hours || 0) / order.estimated_hours) * 100))
+                              : order.progress_percentage || 0}%
+                          </span>
                         </div>
-                        <Progress value={order.progress_percentage} className="h-2" />
+                        <Progress 
+                          value={
+                            order.estimated_hours && order.estimated_hours > 0
+                              ? Math.min(100, Math.round(((order.actual_hours || 0) / order.estimated_hours) * 100))
+                              : order.progress_percentage || 0
+                          } 
+                          className="h-2" 
+                        />
                       </div>
                     )}
 

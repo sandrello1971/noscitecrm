@@ -107,6 +107,12 @@ export function EditOrderDialog({
         ])
         
         // Imposta i dati del form dopo aver caricato i dati
+        const actualHours = order.actual_hours || 0
+        const estimatedHours = order.estimated_hours || 0
+        const calculatedProgress = estimatedHours > 0 
+          ? Math.min(100, Math.round((actualHours / estimatedHours) * 100))
+          : (order.progress_percentage || 0)
+        
         setFormData({
           title: order.title || '',
           description: order.description || '',
@@ -117,7 +123,7 @@ export function EditOrderDialog({
           priority: order.priority || 'medium',
           estimated_hours: order.estimated_hours?.toString() || '',
           actual_hours: order.actual_hours?.toString() || '',
-          progress_percentage: order.progress_percentage?.toString() || '0',
+          progress_percentage: calculatedProgress.toString(),
           notes: order.notes || ''
         })
         
@@ -367,7 +373,22 @@ export function EditOrderDialog({
   }
 
   const updateFormData = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+      
+      // Calcola automaticamente il progresso quando cambiano le ore
+      if (field === 'actual_hours' || field === 'estimated_hours') {
+        const actualHours = field === 'actual_hours' ? parseFloat(value) || 0 : parseFloat(prev.actual_hours) || 0
+        const estimatedHours = field === 'estimated_hours' ? parseFloat(value) || 0 : parseFloat(prev.estimated_hours) || 0
+        
+        if (estimatedHours > 0) {
+          const calculatedProgress = Math.min(100, Math.round((actualHours / estimatedHours) * 100))
+          newData.progress_percentage = calculatedProgress.toString()
+        }
+      }
+      
+      return newData
+    })
   }
 
   if (!order) return null
