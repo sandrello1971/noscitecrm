@@ -92,6 +92,7 @@ export function EditOrderDialog({
   const [parentOrders, setParentOrders] = useState<ParentOrder[]>([])
   const [orderServices, setOrderServices] = useState<OrderService[]>([])
   const [loading, setLoading] = useState(false)
+  const [progressManuallySet, setProgressManuallySet] = useState(false)
   const { toast } = useToast()
   const { isAdmin, user } = useAuth()
 
@@ -111,7 +112,12 @@ export function EditOrderDialog({
         const estimatedHours = order.estimated_hours || 0
         const calculatedProgress = estimatedHours > 0 
           ? Math.min(100, Math.round((actualHours / estimatedHours) * 100))
-          : (order.progress_percentage || 0)
+          : 0
+        
+        // Verifica se il progresso è stato impostato manualmente (diverso dal calcolato)
+        const storedProgress = order.progress_percentage || 0
+        const isManuallySet = estimatedHours > 0 && storedProgress !== calculatedProgress
+        setProgressManuallySet(isManuallySet)
         
         setFormData({
           title: order.title || '',
@@ -123,7 +129,7 @@ export function EditOrderDialog({
           priority: order.priority || 'medium',
           estimated_hours: order.estimated_hours?.toString() || '',
           actual_hours: order.actual_hours?.toString() || '',
-          progress_percentage: calculatedProgress.toString(),
+          progress_percentage: isManuallySet ? storedProgress.toString() : calculatedProgress.toString(),
           notes: order.notes || ''
         })
         
@@ -373,11 +379,16 @@ export function EditOrderDialog({
   }
 
   const updateFormData = (field: string, value: string) => {
+    // Se l'utente modifica manualmente il progresso, marca come impostato manualmente
+    if (field === 'progress_percentage') {
+      setProgressManuallySet(true)
+    }
+    
     setFormData(prev => {
       const newData = { ...prev, [field]: value }
       
-      // Calcola automaticamente il progresso quando cambiano le ore
-      if (field === 'actual_hours' || field === 'estimated_hours') {
+      // Calcola automaticamente il progresso quando cambiano le ore (solo se non impostato manualmente)
+      if ((field === 'actual_hours' || field === 'estimated_hours') && !progressManuallySet) {
         const actualHours = field === 'actual_hours' ? parseFloat(value) || 0 : parseFloat(prev.actual_hours) || 0
         const estimatedHours = field === 'estimated_hours' ? parseFloat(value) || 0 : parseFloat(prev.estimated_hours) || 0
         
