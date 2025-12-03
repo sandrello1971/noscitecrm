@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,46 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+
+    // Verify authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      console.error('Missing authorization header')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Non autorizzato' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Create client with user's auth to verify identity
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // Verify the calling user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      console.error('Error getting user:', userError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Non autorizzato' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    console.log(`User ${user.id} processing business card`)
+
     const { imageBase64 } = await req.json();
     const ocrSpaceApiKey = Deno.env.get('OCR_SPACE_API_KEY');
     
