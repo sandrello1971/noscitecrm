@@ -217,9 +217,13 @@ export default function BusinessCardScanner() {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      // Create signed URL for private bucket (valid for 1 year)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('documents')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365);
+
+      if (signedUrlError) throw signedUrlError;
+      const imageUrl = signedUrlData.signedUrl;
 
       // Create contact
       const { data: contact, error: contactError } = await supabase
@@ -247,7 +251,7 @@ export default function BusinessCardScanner() {
           user_id: user.id,
           company_id: companyId,
           contact_id: contact.id,
-          image_url: publicUrl,
+          image_url: imageUrl,
           original_file_name: selectedFile?.name || '',
           extracted_data: extractedData as any,
           corrected_data: formData as any,
