@@ -143,10 +143,18 @@ export default function Opportunities() {
 
       if (error) throw error
 
-      toast({
-        title: "Successo",
-        description: "Status opportunità aggiornato"
-      })
+      // Show appropriate message based on status
+      if (newStatus === 'acquisita') {
+        toast({
+          title: "Opportunità Acquisita",
+          description: "È stata creata automaticamente una nuova commessa collegata"
+        })
+      } else {
+        toast({
+          title: "Successo",
+          description: "Status opportunità aggiornato"
+        })
+      }
 
       await loadOpportunities()
     } catch (error: any) {
