@@ -618,7 +618,7 @@ export default function Orders() {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -632,7 +632,39 @@ export default function Orders() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Annulla</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteOrder(order)}>
+                              <AlertDialogAction 
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={async () => {
+                                  try {
+                                    // Prima elimina i servizi associati
+                                    await supabase
+                                      .from('crm_order_services')
+                                      .delete()
+                                      .eq('order_id', order.id)
+                                    
+                                    // Poi elimina la commessa
+                                    const { error } = await supabase
+                                      .from('crm_orders')
+                                      .delete()
+                                      .eq('id', order.id)
+
+                                    if (error) throw error
+
+                                    toast({
+                                      title: "Successo",
+                                      description: "Commessa eliminata con successo",
+                                    })
+                                    loadOrders()
+                                  } catch (error: any) {
+                                    console.error('Error deleting order:', error)
+                                    toast({
+                                      title: "Errore",
+                                      description: "Impossibile eliminare la commessa",
+                                      variant: "destructive",
+                                    })
+                                  }
+                                }}
+                              >
                                 Elimina
                               </AlertDialogAction>
                             </AlertDialogFooter>
