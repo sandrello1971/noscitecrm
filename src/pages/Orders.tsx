@@ -284,6 +284,13 @@ export default function Orders() {
     if (!orderToDelete) return
 
     try {
+      // Prima elimina i servizi associati
+      await supabase
+        .from('crm_order_services')
+        .delete()
+        .eq('order_id', orderToDelete.id)
+
+      // Poi elimina la commessa
       const { error } = await supabase
         .from('crm_orders')
         .delete()
@@ -616,60 +623,14 @@ export default function Orders() {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Eliminare la commessa?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Sei sicuro di voler eliminare la commessa "{order.title}"? 
-                                Questa azione non può essere annullata e rimuoverà anche tutti i servizi associati.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annulla</AlertDialogCancel>
-                              <AlertDialogAction 
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={async () => {
-                                  try {
-                                    // Prima elimina i servizi associati
-                                    await supabase
-                                      .from('crm_order_services')
-                                      .delete()
-                                      .eq('order_id', order.id)
-                                    
-                                    // Poi elimina la commessa
-                                    const { error } = await supabase
-                                      .from('crm_orders')
-                                      .delete()
-                                      .eq('id', order.id)
-
-                                    if (error) throw error
-
-                                    toast({
-                                      title: "Successo",
-                                      description: "Commessa eliminata con successo",
-                                    })
-                                    loadOrders()
-                                  } catch (error: any) {
-                                    console.error('Error deleting order:', error)
-                                    toast({
-                                      title: "Errore",
-                                      description: "Impossibile eliminare la commessa",
-                                      variant: "destructive",
-                                    })
-                                  }
-                                }}
-                              >
-                                Elimina
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteOrder(order)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                     
