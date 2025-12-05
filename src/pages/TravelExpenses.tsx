@@ -676,12 +676,12 @@ const TravelExpenses = () => {
 
                 <div>
                   <Label htmlFor="order">Commessa</Label>
-                  <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                  <Select value={selectedOrderId || "none"} onValueChange={(val) => setSelectedOrderId(val === "none" ? "" : val)}>
                     <SelectTrigger className="w-full bg-background">
                       <SelectValue placeholder="Seleziona commessa (opzionale)" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover z-50">
-                      <SelectItem value="">Nessuna commessa</SelectItem>
+                      <SelectItem value="none">Nessuna commessa</SelectItem>
                       {orders.map((order) => (
                         <SelectItem key={order.id} value={order.id}>
                           {order.order_number} - {order.title}
