@@ -186,14 +186,14 @@ export function AddTaskDialog({ open, onOpenChange, projectId, parentTaskId, onT
             <div className="space-y-2">
               <Label>Assegna a Azienda</Label>
               <Select 
-                value={formData.assigned_to_company_id} 
-                onValueChange={(v) => setFormData({ ...formData, assigned_to_company_id: v })}
+                value={formData.assigned_to_company_id || "__none__"} 
+                onValueChange={(v) => setFormData({ ...formData, assigned_to_company_id: v === "__none__" ? "" : v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona azienda" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessuna</SelectItem>
+                  <SelectItem value="__none__">Nessuna</SelectItem>
                   {companies.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
