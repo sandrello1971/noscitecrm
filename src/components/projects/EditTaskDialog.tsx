@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Link2, Trash2, Plus, ArrowRight } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { it } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 interface Task {
   id: string
@@ -29,6 +31,16 @@ interface Task {
   planned_end_date?: string
   start_date?: string
   end_date?: string
+  project_id?: string
+}
+
+interface Dependency {
+  id: string
+  predecessor_task_id: string
+  successor_task_id: string
+  dependency_type: string
+  lag_days: number
+  task_name?: string
 }
 
 interface EditTaskDialogProps {
@@ -38,9 +50,21 @@ interface EditTaskDialogProps {
   onTaskUpdated?: () => void
 }
 
+const DEPENDENCY_TYPES = [
+  { value: 'FS', label: 'Fine → Inizio (FS)' },
+  { value: 'SS', label: 'Inizio → Inizio (SS)' },
+  { value: 'FF', label: 'Fine → Fine (FF)' },
+  { value: 'SF', label: 'Inizio → Fine (SF)' },
+]
+
 export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: EditTaskDialogProps) {
   const [loading, setLoading] = useState(false)
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([])
+  const [allTasks, setAllTasks] = useState<{ id: string; name: string }[]>([])
+  const [predecessors, setPredecessors] = useState<Dependency[]>([])
+  const [successors, setSuccessors] = useState<Dependency[]>([])
+  const [showAddDependency, setShowAddDependency] = useState(false)
+  const [newDep, setNewDep] = useState({ taskId: '', type: 'FS', lag: 0, direction: 'predecessor' as 'predecessor' | 'successor' })
   const [formData, setFormData] = useState({
     name: task.name,
     description: task.description || '',
@@ -61,6 +85,10 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
   useEffect(() => {
     if (open) {
       loadCompanies()
+      loadDependencies()
+      loadAllTasks()
+      setShowAddDependency(false)
+      setNewDep({ taskId: '', type: 'FS', lag: 0, direction: 'predecessor' })
       setFormData({
         name: task.name,
         description: task.description || '',
@@ -86,6 +114,125 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
       .eq('is_active', true)
       .order('name')
     setCompanies(data || [])
+  }
+
+  const loadAllTasks = async () => {
+    if (!task.project_id) {
+      // Get project_id from task
+      const { data: taskData } = await supabase
+        .from('crm_project_tasks')
+        .select('project_id')
+        .eq('id', task.id)
+        .single()
+      
+      if (taskData?.project_id) {
+        const { data } = await supabase
+          .from('crm_project_tasks')
+          .select('id, name')
+          .eq('project_id', taskData.project_id)
+          .neq('id', task.id)
+          .order('name')
+        setAllTasks(data || [])
+      }
+    } else {
+      const { data } = await supabase
+        .from('crm_project_tasks')
+        .select('id, name')
+        .eq('project_id', task.project_id)
+        .neq('id', task.id)
+        .order('name')
+      setAllTasks(data || [])
+    }
+  }
+
+  const loadDependencies = async () => {
+    // Load predecessors (tasks that must complete before this task)
+    const { data: predData } = await supabase
+      .from('crm_task_dependencies')
+      .select('id, predecessor_task_id, successor_task_id, dependency_type, lag_days')
+      .eq('successor_task_id', task.id)
+
+    if (predData) {
+      const predsWithNames = await Promise.all(predData.map(async (dep) => {
+        const { data: taskData } = await supabase
+          .from('crm_project_tasks')
+          .select('name')
+          .eq('id', dep.predecessor_task_id)
+          .single()
+        return { ...dep, task_name: taskData?.name || 'Sconosciuto' }
+      }))
+      setPredecessors(predsWithNames)
+    }
+
+    // Load successors (tasks that depend on this task)
+    const { data: succData } = await supabase
+      .from('crm_task_dependencies')
+      .select('id, predecessor_task_id, successor_task_id, dependency_type, lag_days')
+      .eq('predecessor_task_id', task.id)
+
+    if (succData) {
+      const succsWithNames = await Promise.all(succData.map(async (dep) => {
+        const { data: taskData } = await supabase
+          .from('crm_project_tasks')
+          .select('name')
+          .eq('id', dep.successor_task_id)
+          .single()
+        return { ...dep, task_name: taskData?.name || 'Sconosciuto' }
+      }))
+      setSuccessors(succsWithNames)
+    }
+  }
+
+  const addDependency = async () => {
+    if (!newDep.taskId) {
+      toast({ title: "Errore", description: "Seleziona un'attività", variant: "destructive" })
+      return
+    }
+
+    try {
+      const { data: user } = await supabase.auth.getUser()
+      
+      const depData = newDep.direction === 'predecessor' 
+        ? { predecessor_task_id: newDep.taskId, successor_task_id: task.id }
+        : { predecessor_task_id: task.id, successor_task_id: newDep.taskId }
+
+      const { error } = await supabase
+        .from('crm_task_dependencies')
+        .insert({
+          ...depData,
+          dependency_type: newDep.type,
+          lag_days: newDep.lag,
+          user_id: user.user!.id
+        })
+
+      if (error) {
+        if (error.code === '23505') throw new Error('Questa dipendenza esiste già')
+        throw error
+      }
+
+      toast({ title: "Dipendenza aggiunta" })
+      loadDependencies()
+      setShowAddDependency(false)
+      setNewDep({ taskId: '', type: 'FS', lag: 0, direction: 'predecessor' })
+    } catch (error: any) {
+      toast({ title: "Errore", description: error.message, variant: "destructive" })
+    }
+  }
+
+  const deleteDependency = async (depId: string) => {
+    try {
+      const { error } = await supabase
+        .from('crm_task_dependencies')
+        .delete()
+        .eq('id', depId)
+
+      if (error) throw error
+      
+      toast({ title: "Dipendenza eliminata" })
+      loadDependencies()
+    } catch (error: any) {
+      toast({ title: "Errore", description: error.message, variant: "destructive" })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,9 +290,11 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
     }
   }
 
+  const getTypeLabel = (type: string) => DEPENDENCY_TYPES.find(t => t.value === type)?.label || type
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifica Attività</DialogTitle>
         </DialogHeader>
@@ -284,6 +433,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                     selected={formData.planned_start_date}
                     onSelect={(d) => setFormData({ ...formData, planned_start_date: d })}
                     locale={it}
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -304,6 +454,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                     selected={formData.planned_end_date}
                     onSelect={(d) => setFormData({ ...formData, planned_end_date: d })}
                     locale={it}
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -326,6 +477,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                     selected={formData.start_date}
                     onSelect={(d) => setFormData({ ...formData, start_date: d })}
                     locale={it}
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -346,10 +498,150 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
                     selected={formData.end_date}
                     onSelect={(d) => setFormData({ ...formData, end_date: d })}
                     locale={it}
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
+
+          {/* Dependencies Section */}
+          <Separator className="my-4" />
+          
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                Dipendenze
+              </Label>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAddDependency(!showAddDependency)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Aggiungi
+              </Button>
+            </div>
+
+            {showAddDependency && (
+              <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Direzione</Label>
+                    <Select value={newDep.direction} onValueChange={(v: 'predecessor' | 'successor') => setNewDep({ ...newDep, direction: v })}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="predecessor">Predecessore</SelectItem>
+                        <SelectItem value="successor">Successore</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={newDep.type} onValueChange={(v) => setNewDep({ ...newDep, type: v })}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPENDENCY_TYPES.map(t => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Attività</Label>
+                    <Select value={newDep.taskId} onValueChange={(v) => setNewDep({ ...newDep, taskId: v })}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Seleziona attività" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allTasks.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Lag (giorni)</Label>
+                    <Input
+                      type="number"
+                      className="h-8"
+                      value={newDep.lag}
+                      onChange={(e) => setNewDep({ ...newDep, lag: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddDependency(false)}>
+                    Annulla
+                  </Button>
+                  <Button type="button" size="sm" onClick={addDependency}>
+                    Aggiungi
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Predecessors */}
+            {predecessors.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Predecessori (devono completarsi prima)</Label>
+                {predecessors.map(dep => (
+                  <div key={dep.id} className="flex items-center justify-between p-2 border rounded bg-background">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium">{dep.task_name}</span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <Badge variant="secondary" className="text-xs">{getTypeLabel(dep.dependency_type)}</Badge>
+                      {dep.lag_days !== 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {dep.lag_days > 0 ? `+${dep.lag_days}` : dep.lag_days}g
+                        </Badge>
+                      )}
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => deleteDependency(dep.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Successors */}
+            {successors.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Successori (dipendono da questa)</Label>
+                {successors.map(dep => (
+                  <div key={dep.id} className="flex items-center justify-between p-2 border rounded bg-background">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="secondary" className="text-xs">{getTypeLabel(dep.dependency_type)}</Badge>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">{dep.task_name}</span>
+                      {dep.lag_days !== 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {dep.lag_days > 0 ? `+${dep.lag_days}` : dep.lag_days}g
+                        </Badge>
+                      )}
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => deleteDependency(dep.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {predecessors.length === 0 && successors.length === 0 && !showAddDependency && (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                Nessuna dipendenza configurata
+              </p>
+            )}
           </div>
 
           <DialogFooter>
