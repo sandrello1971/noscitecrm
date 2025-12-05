@@ -207,10 +207,16 @@ export function EditTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Edit
 
       if (error) {
         if (error.code === '23505') throw new Error('Questa dipendenza esiste già')
+        if (error.message?.includes('ciclica') || error.message?.includes('cycle')) {
+          throw new Error('Dipendenza ciclica rilevata! Questa dipendenza creerebbe un ciclo tra le attività.')
+        }
+        if (error.message?.includes('stesso progetto')) {
+          throw new Error('Le attività devono appartenere allo stesso progetto')
+        }
         throw error
       }
 
-      toast({ title: "Dipendenza aggiunta" })
+      toast({ title: "Dipendenza aggiunta", description: "Le date sono state ricalcolate automaticamente" })
       loadDependencies()
       setShowAddDependency(false)
       setNewDep({ taskId: '', type: 'FS', lag: 0, direction: 'predecessor' })

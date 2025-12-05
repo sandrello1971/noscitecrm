@@ -92,12 +92,18 @@ export function AddDependencyDialog({
         if (error.code === '23505') {
           throw new Error('Questa dipendenza esiste già')
         }
+        if (error.message?.includes('ciclica') || error.message?.includes('cycle')) {
+          throw new Error('Dipendenza ciclica rilevata! Questa dipendenza creerebbe un ciclo tra le attività.')
+        }
+        if (error.message?.includes('stesso progetto')) {
+          throw new Error('Le attività devono appartenere allo stesso progetto')
+        }
         throw error
       }
 
       toast({
-        title: "Successo",
-        description: "Dipendenza creata con successo"
+        title: "Dipendenza creata",
+        description: "Le date delle attività collegate sono state ricalcolate automaticamente"
       })
       onOpenChange(false)
       onDependencyAdded?.()

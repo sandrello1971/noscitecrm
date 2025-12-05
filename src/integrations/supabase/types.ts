@@ -3278,6 +3278,14 @@ export type Database = {
         Args: { archive_date?: string; retention_months: number }
         Returns: string
       }
+      cascade_recalculate_dates: {
+        Args: { p_task_id: string }
+        Returns: undefined
+      }
+      check_dependency_cycle: {
+        Args: { p_predecessor_id: string; p_successor_id: string }
+        Returns: boolean
+      }
       cleanup_old_chat_conversations: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       finalize_travel_expense: {
@@ -3330,6 +3338,10 @@ export type Database = {
           source_id: string
           title: string
         }[]
+      }
+      recalculate_task_dates: {
+        Args: { p_task_id: string }
+        Returns: undefined
       }
       schedule_next_backup: { Args: never; Returns: undefined }
       set_session_context: {
