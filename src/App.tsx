@@ -14,6 +14,8 @@ import Contacts from "@/pages/Contacts"
 import Services from "@/pages/Services"
 import Opportunities from "@/pages/Opportunities"
 import Orders from "@/pages/Orders"
+import Projects from "@/pages/Projects"
+import ProjectDetail from "@/pages/ProjectDetail"
 import Settings from "@/pages/Settings"
 import NotFound from "@/pages/NotFound"
 import FieraLeads from "@/pages/FieraLeads"
@@ -60,6 +62,8 @@ function App() {
           <Route path="/services" element={<Services />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/orders" element={<Orders />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/settings" element={<Settings />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>

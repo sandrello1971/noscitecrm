@@ -8,7 +8,8 @@ import {
   Package,
   TrendingUp,
   LogOut,
-  Car
+  Car,
+  FolderKanban
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -33,6 +34,7 @@ const items = [
   { title: "Servizi", url: "/services", icon: Package },
   { title: "Opportunità", url: "/opportunities", icon: TrendingUp },
   { title: "Commesse", url: "/orders", icon: ShoppingCart },
+  { title: "Progetti", url: "/projects", icon: FolderKanban },
   { title: "Rimborsi KM", url: "/travel-expenses", icon: Car },
   { title: "Impostazioni", url: "/settings", icon: Settings },
 ]
