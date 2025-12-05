@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -7,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Plus, X } from "lucide-react"
+import { CalendarIcon, Plus, X, FolderKanban } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -93,8 +94,11 @@ export function EditOrderDialog({
   const [orderServices, setOrderServices] = useState<OrderService[]>([])
   const [loading, setLoading] = useState(false)
   const [progressManuallySet, setProgressManuallySet] = useState(false)
+  const [existingProjectId, setExistingProjectId] = useState<string | null>(null)
+  const [creatingProject, setCreatingProject] = useState(false)
   const { toast } = useToast()
   const { isAdmin, user } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (open && order) {
@@ -104,7 +108,8 @@ export function EditOrderDialog({
           loadCompanies(),
           loadServices(),
           loadParentOrders(),
-          loadOrderServices()
+          loadOrderServices(),
+          checkExistingProject()
         ])
         
         // Imposta i dati del form dopo aver caricato i dati
@@ -141,8 +146,72 @@ export function EditOrderDialog({
     } else if (open) {
       // Se non c'è un order, inizializza con servizi vuoti
       setOrderServices([])
+      setExistingProjectId(null)
     }
   }, [open, order])
+
+  const checkExistingProject = async () => {
+    if (!order?.id) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('crm_projects')
+        .select('id')
+        .eq('order_id', order.id)
+        .maybeSingle()
+      
+      if (error) throw error
+      setExistingProjectId(data?.id || null)
+    } catch (error) {
+      console.error('Error checking existing project:', error)
+      setExistingProjectId(null)
+    }
+  }
+
+  const handleCreateProject = async () => {
+    if (!order || !user) return
+    
+    setCreatingProject(true)
+    try {
+      const { data, error } = await supabase
+        .from('crm_projects')
+        .insert({
+          order_id: order.id,
+          user_id: user.id,
+          name: formData.title || order.title,
+          description: formData.description || order.description,
+          status: 'planning',
+          planned_start_date: startDate?.toISOString().split('T')[0] || order.start_date,
+          planned_end_date: endDate?.toISOString().split('T')[0] || order.end_date,
+          budget: calculateTotal() || order.total_amount || 0
+        })
+        .select('id')
+        .single()
+      
+      if (error) throw error
+      
+      setExistingProjectId(data.id)
+      toast({
+        title: "Progetto creato",
+        description: "Il progetto è stato generato dalla commessa"
+      })
+      
+      // Chiedi se vuole andare al progetto
+      if (confirm('Vuoi aprire il progetto appena creato?')) {
+        onOpenChange(false)
+        navigate(`/projects/${data.id}`)
+      }
+    } catch (error: any) {
+      console.error('Error creating project:', error)
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante la creazione del progetto",
+        variant: "destructive"
+      })
+    } finally {
+      setCreatingProject(false)
+    }
+  }
 
   const loadCompanies = async () => {
     try {
@@ -718,13 +787,40 @@ export function EditOrderDialog({
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Aggiornamento..." : "Aggiorna Commessa"}
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              {existingProjectId ? (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    onOpenChange(false)
+                    navigate(`/projects/${existingProjectId}`)
+                  }}
+                >
+                  <FolderKanban className="h-4 w-4 mr-2" />
+                  Vai al Progetto
+                </Button>
+              ) : (
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={handleCreateProject}
+                  disabled={creatingProject}
+                >
+                  <FolderKanban className="h-4 w-4 mr-2" />
+                  {creatingProject ? "Creazione..." : "Genera Progetto"}
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Aggiornamento..." : "Aggiorna Commessa"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
