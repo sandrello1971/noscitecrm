@@ -3150,6 +3150,7 @@ export type Database = {
           id: string
           mission_description: string
           notes: string | null
+          order_id: string | null
           reimbursement_rate_per_km: number
           requires_diaria: boolean
           status: string | null
@@ -3170,6 +3171,7 @@ export type Database = {
           id?: string
           mission_description: string
           notes?: string | null
+          order_id?: string | null
           reimbursement_rate_per_km?: number
           requires_diaria?: boolean
           status?: string | null
@@ -3190,6 +3192,7 @@ export type Database = {
           id?: string
           mission_description?: string
           notes?: string | null
+          order_id?: string | null
           reimbursement_rate_per_km?: number
           requires_diaria?: boolean
           status?: string | null
@@ -3200,7 +3203,15 @@ export type Database = {
           vehicle_model?: string | null
           vehicle_plate?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "travel_expenses_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "crm_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {

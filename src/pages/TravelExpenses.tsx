@@ -16,6 +16,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface Order {
+  id: string;
+  order_number: string;
+  title: string;
+}
 
 interface TravelExpense {
   id: string;
@@ -33,6 +40,8 @@ interface TravelExpense {
   attachment_urls?: Array<{ name: string; url: string; size: number }>;
   submitted_at?: string;
   finalized_at?: string;
+  order_id?: string;
+  order?: Order;
 }
 
 const TravelExpenses = () => {
@@ -42,6 +51,9 @@ const TravelExpenses = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Orders state
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // Form state
   const [missionDescription, setMissionDescription] = useState('');
@@ -56,6 +68,26 @@ const TravelExpenses = () => {
   const [requiresDiaria, setRequiresDiaria] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [viewingAttachments, setViewingAttachments] = useState<TravelExpense | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+
+  const fetchOrders = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('crm_orders')
+        .select('id, order_number, title')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'in_progress'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error: any) {
+      console.error('Error fetching orders:', error);
+    }
+  };
 
   const fetchExpenses = async () => {
     try {
@@ -69,7 +101,10 @@ const TravelExpenses = () => {
 
       const { data, error } = await supabase
         .from('travel_expenses')
-        .select('*')
+        .select(`
+          *,
+          order:crm_orders(id, order_number, title)
+        `)
         .eq('user_id', user.id)
         .gte('travel_date', startDate)
         .lte('travel_date', endDate)
@@ -79,7 +114,8 @@ const TravelExpenses = () => {
       setExpenses((data || []).map(exp => ({
         ...exp,
         status: exp.status as 'draft' | 'submitted' | 'approved' | 'rejected',
-        attachment_urls: exp.attachment_urls ? JSON.parse(JSON.stringify(exp.attachment_urls)) : []
+        attachment_urls: exp.attachment_urls ? JSON.parse(JSON.stringify(exp.attachment_urls)) : [],
+        order: exp.order as Order | undefined
       })));
     } catch (error: any) {
       toast({
@@ -91,6 +127,10 @@ const TravelExpenses = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   useEffect(() => {
     fetchExpenses();
@@ -109,6 +149,7 @@ const TravelExpenses = () => {
     setRequiresDiaria(false);
     setAttachments([]);
     setEditingId(null);
+    setSelectedOrderId('');
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -175,6 +216,7 @@ const TravelExpenses = () => {
             vehicle_model: vehicleModel || null,
             requires_diaria: requiresDiaria,
             attachment_urls: mergedAttachments,
+            order_id: selectedOrderId || null,
           })
           .eq('id', editingId);
 
@@ -200,6 +242,7 @@ const TravelExpenses = () => {
           requires_diaria: requiresDiaria || false,
           attachment_urls: uploadedAttachments,
           status: 'draft',
+          order_id: selectedOrderId || null,
         });
 
         if (error) throw error;
@@ -233,6 +276,7 @@ const TravelExpenses = () => {
     setVehiclePlate(expense.vehicle_plate || '');
     setVehicleModel(expense.vehicle_model || '');
     setRequiresDiaria(expense.requires_diaria || false);
+    setSelectedOrderId(expense.order_id || '');
   };
 
   const handleDuplicateExpense = (expense: TravelExpense) => {
@@ -247,6 +291,7 @@ const TravelExpenses = () => {
     setVehiclePlate(expense.vehicle_plate || '');
     setVehicleModel(expense.vehicle_model || '');
     setRequiresDiaria(expense.requires_diaria || false);
+    setSelectedOrderId(expense.order_id || '');
     
     toast({
       title: "Pronto per duplicare",
@@ -630,6 +675,23 @@ const TravelExpenses = () => {
                 </div>
 
                 <div>
+                  <Label htmlFor="order">Commessa</Label>
+                  <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder="Seleziona commessa (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="">Nessuna commessa</SelectItem>
+                      {orders.map((order) => (
+                        <SelectItem key={order.id} value={order.id}>
+                          {order.order_number} - {order.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label htmlFor="vehiclePlate">Targa Auto</Label>
                   <Input
                     id="vehiclePlate"
@@ -838,6 +900,7 @@ const TravelExpenses = () => {
                       <TableRow>
                         <TableHead>Data</TableHead>
                         <TableHead>Missione</TableHead>
+                        <TableHead>Commessa</TableHead>
                         <TableHead>Partenza</TableHead>
                         <TableHead>Arrivo</TableHead>
                         <TableHead className="text-right">KM</TableHead>
@@ -859,6 +922,11 @@ const TravelExpenses = () => {
                             {format(new Date(expense.travel_date), 'dd/MM/yyyy', { locale: it })}
                           </TableCell>
                           <TableCell>{expense.mission_description}</TableCell>
+                          <TableCell className="text-xs">
+                            {expense.order ? (
+                              <span className="text-primary">{expense.order.order_number}</span>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell>{expense.departure_location}</TableCell>
                           <TableCell>{expense.arrival_location}</TableCell>
                           <TableCell className="text-right font-medium">
