@@ -1190,6 +1190,315 @@ export type Database = {
           },
         ]
       }
+      crm_project_documents: {
+        Row: {
+          created_at: string
+          description: string | null
+          document_type: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          name: string
+          project_id: string
+          task_id: string | null
+          updated_at: string
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          document_type: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          name: string
+          project_id: string
+          task_id?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          name?: string
+          project_id?: string
+          task_id?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "crm_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_project_documents_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "crm_project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_project_tasks: {
+        Row: {
+          actual_cost: number | null
+          actual_hours: number | null
+          assigned_to_company_id: string | null
+          assigned_to_group: string | null
+          assigned_to_user_id: string | null
+          created_at: string
+          depends_on: string[] | null
+          description: string | null
+          end_date: string | null
+          estimated_hours: number | null
+          id: string
+          name: string
+          parent_task_id: string | null
+          planned_cost: number | null
+          planned_end_date: string | null
+          planned_start_date: string | null
+          priority: string | null
+          progress_percentage: number | null
+          project_id: string
+          sort_order: number | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_cost?: number | null
+          actual_hours?: number | null
+          assigned_to_company_id?: string | null
+          assigned_to_group?: string | null
+          assigned_to_user_id?: string | null
+          created_at?: string
+          depends_on?: string[] | null
+          description?: string | null
+          end_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name: string
+          parent_task_id?: string | null
+          planned_cost?: number | null
+          planned_end_date?: string | null
+          planned_start_date?: string | null
+          priority?: string | null
+          progress_percentage?: number | null
+          project_id: string
+          sort_order?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_cost?: number | null
+          actual_hours?: number | null
+          assigned_to_company_id?: string | null
+          assigned_to_group?: string | null
+          assigned_to_user_id?: string | null
+          created_at?: string
+          depends_on?: string[] | null
+          description?: string | null
+          end_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name?: string
+          parent_task_id?: string | null
+          planned_cost?: number | null
+          planned_end_date?: string | null
+          planned_start_date?: string | null
+          priority?: string | null
+          progress_percentage?: number | null
+          project_id?: string
+          sort_order?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_project_tasks_assigned_to_company_id_fkey"
+            columns: ["assigned_to_company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_project_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "crm_project_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "crm_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_project_timesheets: {
+        Row: {
+          activity_type: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          description: string | null
+          hourly_rate: number | null
+          hours: number
+          id: string
+          notes: string | null
+          project_id: string
+          status: string
+          task_id: string | null
+          total_cost: number | null
+          updated_at: string
+          user_id: string
+          work_date: string
+        }
+        Insert: {
+          activity_type: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          hourly_rate?: number | null
+          hours: number
+          id?: string
+          notes?: string | null
+          project_id: string
+          status?: string
+          task_id?: string | null
+          total_cost?: number | null
+          updated_at?: string
+          user_id: string
+          work_date: string
+        }
+        Update: {
+          activity_type?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          hourly_rate?: number | null
+          hours?: number
+          id?: string
+          notes?: string | null
+          project_id?: string
+          status?: string
+          task_id?: string | null
+          total_cost?: number | null
+          updated_at?: string
+          user_id?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_project_timesheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "crm_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_project_timesheets_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "crm_project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_projects: {
+        Row: {
+          actual_cost: number | null
+          budget: number | null
+          created_at: string
+          description: string | null
+          earned_value: number | null
+          end_date: string | null
+          id: string
+          name: string
+          order_id: string | null
+          planned_end_date: string | null
+          planned_start_date: string | null
+          planned_value: number | null
+          progress_percentage: number | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_cost?: number | null
+          budget?: number | null
+          created_at?: string
+          description?: string | null
+          earned_value?: number | null
+          end_date?: string | null
+          id?: string
+          name: string
+          order_id?: string | null
+          planned_end_date?: string | null
+          planned_start_date?: string | null
+          planned_value?: number | null
+          progress_percentage?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_cost?: number | null
+          budget?: number | null
+          created_at?: string
+          description?: string | null
+          earned_value?: number | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          order_id?: string | null
+          planned_end_date?: string | null
+          planned_start_date?: string | null
+          planned_value?: number | null
+          progress_percentage?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_projects_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "crm_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_service_compositions: {
         Row: {
           child_service_id: string
