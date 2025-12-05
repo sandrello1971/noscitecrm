@@ -1437,6 +1437,54 @@ export type Database = {
           },
         ]
       }
+      crm_task_dependencies: {
+        Row: {
+          created_at: string
+          dependency_type: string
+          id: string
+          lag_days: number
+          predecessor_task_id: string
+          successor_task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dependency_type?: string
+          id?: string
+          lag_days?: number
+          predecessor_task_id: string
+          successor_task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dependency_type?: string
+          id?: string
+          lag_days?: number
+          predecessor_task_id?: string
+          successor_task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_task_dependencies_predecessor_task_id_fkey"
+            columns: ["predecessor_task_id"]
+            isOneToOne: false
+            referencedRelation: "crm_project_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_task_dependencies_successor_task_id_fkey"
+            columns: ["successor_task_id"]
+            isOneToOne: false
+            referencedRelation: "crm_project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       digital_timestamps: {
         Row: {
           archive_id: string | null
