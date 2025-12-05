@@ -72,13 +72,9 @@ const TravelExpenses = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from('crm_orders')
         .select('id, order_number, title')
-        .eq('user_id', user.id)
         .in('status', ['active', 'in_progress'])
         .order('created_at', { ascending: false });
 
